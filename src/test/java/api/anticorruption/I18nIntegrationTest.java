@@ -49,6 +49,20 @@ class I18nIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$[?(@.value == 'STUDENT')].label").value(expected));
     }
 
+    @ParameterizedTest(name = "lang={0} -> {1}")
+    @DisplayName("Rol nomi tanlangan tilda qaytadi")
+    @CsvSource({
+            "uz,      Foydalanuvchi",
+            "uz-cyrl, Фойдаланувчи",
+            "ru,      Пользователь",
+            "en,      User"
+    })
+    void roleLabelIsTranslated(String lang, String expected) throws Exception {
+        mockMvc.perform(get("/api/v1/reference/roles").param("lang", lang))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.value == 'CITIZEN')].label").value(expected));
+    }
+
     @Test
     @DisplayName("Til ko'rsatilmasa o'zbekcha (lotin) qaytadi")
     void defaultLanguageIsUzbekLatin() throws Exception {

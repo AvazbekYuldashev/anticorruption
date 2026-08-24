@@ -7,6 +7,7 @@ import api.anticorruption.complaint.dto.EnumOption;
 import api.anticorruption.university.UniversityService;
 import api.anticorruption.university.dto.DepartmentResponse;
 import api.anticorruption.university.dto.FacultyResponse;
+import api.anticorruption.user.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,12 @@ public class ReferenceController {
         return ResponseEntity.ok(options(AccusedPosition.values()));
     }
 
+    @Operation(summary = "Rollar", description = "Admin panelida rol tanlash uchun")
+    @GetMapping("/roles")
+    public ResponseEntity<List<EnumOption>> roles() {
+        return ResponseEntity.ok(options(Role.values()));
+    }
+
     @Operation(summary = "Fakultetlar", description = "Faqat faol fakultetlar, kafedralari bilan birga")
     @GetMapping("/faculties")
     public ResponseEntity<List<FacultyResponse>> faculties() {
@@ -99,6 +106,7 @@ public class ReferenceController {
         reference.put("reporterTypes", options(ReporterType.values()));
         reference.put("studyForms", options(StudyForm.values()));
         reference.put("positions", options(AccusedPosition.values()));
+        reference.put("roles", options(Role.values()));
         reference.put("faculties", universityService.listActiveFaculties());
         return ResponseEntity.ok(reference);
     }

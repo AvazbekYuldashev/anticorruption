@@ -1,0 +1,40 @@
+@import 'tailwindcss';
+
+/*
+ * Tailwind v4 da mavzu (theme) CSS orqali sozlanadi - alohida
+ * tailwind.config.js kerak emas.
+ */
+@theme {
+  /* Asosiy rang: ishonch va rasmiylik ohangi. */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-800: #1e3a8a;
+  --color-brand-900: #172554;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+ * Kirill va lotin matnlari bir xil ko'rinishi uchun tizim shriftlari
+ * ishlatiladi - tashqi shrift yuklab olinmaydi, sahifa tezroq ochiladi.
+ */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* Uzoq matnlarda (yangilik, sahifa) o'qilishi qulay bo'lishi uchun. */
+.prose-content {
+  @apply leading-relaxed whitespace-pre-line;
+}
+
+.prose-content a {
+  @apply text-brand-600 underline;
+}

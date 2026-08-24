@@ -1,12 +1,21 @@
-# Universitet korrupsiyaga qarshi kurash portali — REST API
+# Korrupsiyaga qarshi kurash markazi portali
 
-Oliy ta'lim muassasasida korrupsiya holatlari haqida murojaat qabul qiladigan
-portalning backend qismi. Spring Boot 4 (Java 21), PostgreSQL, JWT.
+**Andijon davlat texnika instituti** korrupsiyaga qarshi kurash markazining
+portali: backend (Spring Boot 4, Java 21, PostgreSQL, JWT) va frontend
+(React + Vite + TypeScript).
 
 Loyiha [korrupsiya.astiedu.uz](https://korrupsiya.astiedu.uz/asti/) saytining
 kengaytirilgan muqobili sifatida yozilgan: o'sha bo'limlarning hammasi bor,
 ustiga murojaatni kuzatish, dalil biriktirish, holat tarixi, rollar va
 ochiq reyestr qo'shilgan.
+
+```
+anticorruption/
+├── src/          Backend (Spring Boot) — REST API
+└── frontend/     Frontend (React + Vite + TypeScript)
+```
+
+Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
 
 ## Bo'limlar
 
@@ -200,13 +209,24 @@ aniqlanadi.
 
 **Admin o'zini bloklay olmaydi** va o'z rolini pasaytira olmaydi.
 
+## Frontend
+
+```bash
+npm install --prefix frontend
+npm run dev --prefix frontend
+```
+
+Sayt http://localhost:5173 da ochiladi; `/api` so'rovlari backend'ga uzatiladi.
+Ommaviy sayt Tailwind bilan, admin panel MUI bilan yozilgan va alohida
+bo'lakka ajratilgan (lazy yuklanadi). Batafsil: [frontend/README.md](frontend/README.md)
+
 ## Testlar
 
 ```bash
 ./mvnw test
 ```
 
-73 ta integratsion test, 6 ta sinf: murojaat oqimi, universitet tuzilmasi,
+77 ta integratsion test, 6 ta sinf: murojaat oqimi, universitet tuzilmasi,
 sayt bo'limlari, so'rovnomalar, tarjimalar va kontekst yuklanishi. Testlar
 xotiradagi H2 da ishlaydi — PostgreSQL kerak emas.
 

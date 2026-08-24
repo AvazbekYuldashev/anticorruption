@@ -387,11 +387,17 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.value == 'STUDENT')].label").value("Talaba"));
 
+        mockMvc.perform(get("/api/v1/reference/roles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[?(@.value == 'MODERATOR')].label").value("Moderator"));
+
         mockMvc.perform(get("/api/v1/reference"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.categories").isArray())
                 .andExpect(jsonPath("$.faculties").isArray())
-                .andExpect(jsonPath("$.positions").isArray());
+                .andExpect(jsonPath("$.positions").isArray())
+                .andExpect(jsonPath("$.roles").isArray());
 
         mockMvc.perform(get("/api/v1/stats/public"))
                 .andExpect(status().isOk())
