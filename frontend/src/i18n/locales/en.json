@@ -170,7 +170,9 @@
     "readMore": "Read more",
     "views": "{{count}} views",
     "searchPlaceholder": "Search the news",
-    "backToList": "All news"
+    "backToList": "All news",
+    "gallery": "Photos",
+    "imageCount": "{{count}} photo(s)"
   },
   "staff": {
     "title": "Department staff",
@@ -350,11 +352,23 @@
     "pollActive": "Active",
     "activate": "Activate",
     "deactivate": "Close",
-    "editOptionsWarning": "Removing an existing option also removes its votes."
+    "editOptionsWarning": "Removing an existing option also removes its votes.",
+    "album": "Album",
+    "manageAlbum": "Album",
+    "addImages": "Add photos",
+    "imagesHint": "You can select several files at once. Only jpeg, png or webp.",
+    "noImages": "The album is empty",
+    "uploadingImages": "Uploading..."
   },
   "errors": {
     "network": "Could not reach the server. Check your connection and try again.",
     "unknown": "An unexpected error occurred",
     "fixFields": "Fix the highlighted fields and submit again"
+  },
+  "gallery": {
+    "close": "Close",
+    "counter": "{{current}} / {{total}}",
+    "next": "Next photo",
+    "prev": "Previous photo"
   }
 }

@@ -297,6 +297,15 @@ export interface FacultyRatingResponse {
 
 // ---------------------------------------------------------------- kontent
 
+/** Yangilik albomidagi bitta rasm. */
+export interface NewsImageResponse {
+  id: number;
+  url: string;
+  originalName: string;
+  caption: string | null;
+  displayOrder: number;
+}
+
 export interface NewsSummaryResponse {
   id: number;
   slug: string;
@@ -306,10 +315,13 @@ export interface NewsSummaryResponse {
   published: boolean;
   publishedAt: string | null;
   viewCount: number;
+  /** Albomdagi rasmlar soni - ro'yxatda "galereya bor" belgisi. */
+  imageCount: number;
 }
 
 export interface NewsDetailResponse extends NewsSummaryResponse {
   body: string;
+  images: NewsImageResponse[];
   createdAt: string;
   updatedAt: string;
 }

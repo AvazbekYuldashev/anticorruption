@@ -1,11 +1,14 @@
 package api.anticorruption.content;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +19,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Yangilik yoki e'lon.
@@ -71,6 +76,16 @@ public class News {
     @Column(name = "view_count", nullable = false)
     @Builder.Default
     private long viewCount = 0;
+
+    /**
+     * Albom: yangilik ichida galereya sifatida ko'rsatiladigan rasmlar.
+     * Yangilik o'chirilsa yozuvlari ham o'chadi; fayllarni diskdan
+     * {@code NewsService} tozalaydi.
+     */
+    @OneToMany(mappedBy = "news", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC, id ASC")
+    @Builder.Default
+    private List<NewsImage> images = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -148,4 +148,27 @@ export const api = {
 
     return handleResponse<T>(response);
   },
+
+  /**
+   * Bir nechta faylni bitta so'rovda yuboradi.
+   *
+   * <p>Har bir fayl bir xil nom bilan qo'shiladi - backend uni
+   * {@code List<MultipartFile>} sifatida qabul qiladi. Bitta so'rov
+   * tanlangani bejiz emas: shunda serverda ham hammasi bir tranzaksiyada
+   * saqlanadi va chegara tekshiruvi butun to'plamga nisbatan bajariladi.
+   */
+  uploadMany: async <T>(path: string, files: File[], fieldName = 'files'): Promise<T> => {
+    const form = new FormData();
+    for (const file of files) {
+      form.append(fieldName, file);
+    }
+
+    const response = await fetch(buildUrl(path), {
+      method: 'POST',
+      headers: authHeaders(),
+      body: form,
+    });
+
+    return handleResponse<T>(response);
+  },
 };

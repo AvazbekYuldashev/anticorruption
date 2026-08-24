@@ -42,6 +42,7 @@ public final class MessageKeys {
     public static final String NOT_FOUND_STAFF_MEMBER = "error.notFound.staffMember";
     public static final String NOT_FOUND_LINK = "error.notFound.link";
     public static final String NOT_FOUND_POLL = "error.notFound.poll";
+    public static final String NOT_FOUND_NEWS_IMAGE = "error.notFound.newsImage";
 
     // ---------------------------------------------------------------- murojaat
 
@@ -76,6 +77,7 @@ public final class MessageKeys {
     // ---------------------------------------------------------------- fayllar
 
     public static final String FILE_EMPTY = "error.file.empty";
+    public static final String FILE_NONE_SELECTED = "error.file.noneSelected";
     public static final String FILE_TYPE_NOT_ALLOWED = "error.file.typeNotAllowed";
     public static final String FILE_IMAGE_TYPE_NOT_ALLOWED = "error.file.imageTypeNotAllowed";
     public static final String FILE_INVALID_NAME = "error.file.invalidName";
@@ -90,6 +92,7 @@ public final class MessageKeys {
     public static final String NEWS_NOT_FOUND_BY_SLUG = "error.news.notFoundBySlug";
     public static final String NEWS_ALREADY_PUBLISHED = "error.news.alreadyPublished";
     public static final String NEWS_ALREADY_DRAFT = "error.news.alreadyDraft";
+    public static final String NEWS_TOO_MANY_IMAGES = "error.news.tooManyImages";
     public static final String PAGE_SLUG_TAKEN = "error.page.slugTaken";
     public static final String PAGE_NOT_FOUND_BY_SLUG = "error.page.notFoundBySlug";
 

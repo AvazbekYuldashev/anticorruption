@@ -4,7 +4,12 @@ import api.anticorruption.content.News;
 
 import java.time.Instant;
 
-/** Yangiliklar ro'yxatidagi bitta yozuv - matnning o'zisiz. */
+/**
+ * Yangiliklar ro'yxatidagi bitta yozuv - matnning o'zisiz.
+ *
+ * @param imageCount albomdagi rasmlar soni; ro'yxatda "galereya bor" belgisi
+ *                   sifatida ishlatiladi
+ */
 public record NewsSummaryResponse(
         Long id,
         String slug,
@@ -13,9 +18,14 @@ public record NewsSummaryResponse(
         String coverImageUrl,
         boolean published,
         Instant publishedAt,
-        long viewCount
+        long viewCount,
+        long imageCount
 ) {
-    public static NewsSummaryResponse from(News news) {
+    /**
+     * @param imageCount alohida guruhlangan so'rovdan olinadi, shuning uchun
+     *                   bu yerda {@code news.getImages()} chaqirilmaydi (N+1 dan qochish)
+     */
+    public static NewsSummaryResponse from(News news, long imageCount) {
         return new NewsSummaryResponse(
                 news.getId(),
                 news.getSlug(),
@@ -24,6 +34,7 @@ public record NewsSummaryResponse(
                 MediaUrls.of(news.getCoverImage()),
                 news.isPublished(),
                 news.getPublishedAt(),
-                news.getViewCount());
+                news.getViewCount(),
+                imageCount);
     }
 }

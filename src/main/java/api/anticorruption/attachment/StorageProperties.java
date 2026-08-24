@@ -7,14 +7,16 @@ import java.util.List;
 /**
  * Fayl saqlash sozlamalari (application.properties dagi "app.storage.*").
  *
- * @param location            fayllar saqlanadigan papka
+ * @param location             fayllar saqlanadigan papka
  * @param maxFilesPerComplaint bitta murojaatga nechta fayl biriktirish mumkin
- * @param allowedContentTypes ruxsat etilgan MIME turlari
+ * @param maxImagesPerNews     bitta yangilik albomiga nechta rasm qo'shish mumkin
+ * @param allowedContentTypes  ruxsat etilgan MIME turlari
  */
 @ConfigurationProperties(prefix = "app.storage")
 public record StorageProperties(
         String location,
         int maxFilesPerComplaint,
+        int maxImagesPerNews,
         List<String> allowedContentTypes
 ) {
     public StorageProperties {
@@ -23,6 +25,9 @@ public record StorageProperties(
         }
         if (maxFilesPerComplaint <= 0) {
             maxFilesPerComplaint = 5;
+        }
+        if (maxImagesPerNews <= 0) {
+            maxImagesPerNews = 20;
         }
         if (allowedContentTypes == null || allowedContentTypes.isEmpty()) {
             allowedContentTypes = List.of(

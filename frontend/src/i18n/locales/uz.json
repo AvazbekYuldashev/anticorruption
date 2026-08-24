@@ -170,7 +170,9 @@
     "readMore": "Batafsil",
     "views": "{{count}} marta ko'rilgan",
     "searchPlaceholder": "Yangiliklar ichida qidirish",
-    "backToList": "Barcha yangiliklar"
+    "backToList": "Barcha yangiliklar",
+    "gallery": "Rasmlar",
+    "imageCount": "{{count}} ta rasm"
   },
   "staff": {
     "title": "Bo'lim xodimlari",
@@ -350,11 +352,23 @@
     "pollActive": "Faol",
     "activate": "Faollashtirish",
     "deactivate": "Yopish",
-    "editOptionsWarning": "Mavjud variantni o'chirsangiz uning ovozlari ham o'chadi."
+    "editOptionsWarning": "Mavjud variantni o'chirsangiz uning ovozlari ham o'chadi.",
+    "album": "Albom",
+    "manageAlbum": "Albom",
+    "addImages": "Rasm qo'shish",
+    "imagesHint": "Bir vaqtda bir nechta rasm tanlash mumkin. Faqat jpeg, png yoki webp.",
+    "noImages": "Albom hozircha bo'sh",
+    "uploadingImages": "Yuklanmoqda..."
   },
   "errors": {
     "network": "Serverga ulanib bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",
     "unknown": "Kutilmagan xatolik yuz berdi",
     "fixFields": "Belgilangan maydonlarni tuzatib, qaytadan yuboring"
+  },
+  "gallery": {
+    "close": "Yopish",
+    "counter": "{{current}} / {{total}}",
+    "next": "Keyingi rasm",
+    "prev": "Oldingi rasm"
   }
 }

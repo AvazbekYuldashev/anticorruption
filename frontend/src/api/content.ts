@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   NewsDetailResponse,
+  NewsImageResponse,
   NewsSummaryResponse,
   PageResponse,
   StaffMemberResponse,
@@ -65,6 +66,13 @@ export const contentApi = {
 
   uploadNewsCover: (id: number, file: File) =>
     api.upload<NewsDetailResponse>(`/admin/news/${id}/cover`, file),
+
+  /** Albomga bir vaqtda bir nechta rasm qo'shadi. */
+  uploadNewsImages: (id: number, files: File[]) =>
+    api.uploadMany<NewsImageResponse[]>(`/admin/news/${id}/images`, files),
+
+  deleteNewsImage: (id: number, imageId: number) =>
+    api.delete<void>(`/admin/news/${id}/images/${imageId}`),
 
   deleteNews: (id: number) => api.delete<void>(`/admin/news/${id}`),
 

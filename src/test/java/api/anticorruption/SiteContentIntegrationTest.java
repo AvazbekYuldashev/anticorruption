@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -127,6 +128,113 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
                 "file", "hujjat.pdf", "application/pdf", new byte[]{'%', 'P', 'D', 'F'});
 
         mockMvc.perform(authorized(multipart("/api/v1/admin/news/{id}/cover", newsId).file(pdf), token))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ------------------------------------------------------------- albom
+
+    @Test
+    @DisplayName("Bir vaqtda bir nechta rasm yuklanadi va albom yangilikda ko'rinadi")
+    void multipleImagesCanBeUploadedAsAlbum() throws Exception {
+        String token = adminToken();
+        int newsId = createNews(token, "Albomli yangilik sinovi uchun sarlavha", true);
+        String slug = "albomli-yangilik-sinovi-uchun-sarlavha";
+
+        // Uchta rasm bitta so'rovda ketadi - "files" maydoni takrorlanadi.
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId)
+                                .file(image("birinchi.png"))
+                                .file(image("ikkinchi.png")),
+                        token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].url").isNotEmpty())
+                .andExpect(jsonPath("$[0].displayOrder").value(0))
+                .andExpect(jsonPath("$[1].displayOrder").value(1));
+
+        // Ochiq yangilikda albom ko'rinadi
+        mockMvc.perform(get("/api/v1/news/{slug}", slug))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.images.length()").value(2))
+                .andExpect(jsonPath("$.images[0].originalName").value("birinchi.png"));
+
+        // Ro'yxatda rasmlar soni ko'rsatiladi
+        mockMvc.perform(get("/api/v1/news").param("query", "Albomli"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].imageCount").value(2));
+    }
+
+    @Test
+    @DisplayName("Keyingi yuklashda tartib raqami davom etadi")
+    void imageOrderContinuesAcrossUploads() throws Exception {
+        String token = adminToken();
+        int newsId = createNews(token, "Tartib raqami davom etishi sinovi", false);
+
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId).file(image("a.png")),
+                        token))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId).file(image("b.png")),
+                        token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].displayOrder").value(1));
+    }
+
+    @Test
+    @DisplayName("Albomdan rasm o'chiriladi")
+    void imageCanBeRemovedFromAlbum() throws Exception {
+        String token = adminToken();
+        int newsId = createNews(token, "Rasm ochirish sinovi uchun sarlavha", false);
+
+        String uploaded = mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId)
+                                .file(image("ochiriladi.png")),
+                        token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int imageId = JsonPath.read(uploaded, "$[0].id");
+
+        mockMvc.perform(authorized(
+                        delete("/api/v1/admin/news/{id}/images/{imageId}", newsId, imageId), token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(authorized(get("/api/v1/admin/news/{id}", newsId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.images.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("Chegaradan ortiq rasm qabul qilinmaydi")
+    void albumLimitIsEnforced() throws Exception {
+        String token = adminToken();
+        int newsId = createNews(token, "Chegara sinovi uchun yangilik sarlavhasi", false);
+
+        // Sinov sozlamasida chegara 3 ta.
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId)
+                                .file(image("1.png"))
+                                .file(image("2.png"))
+                                .file(image("3.png"))
+                                .file(image("4.png")),
+                        token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.news.tooManyImages"));
+    }
+
+    @Test
+    @DisplayName("Albomga rasm bo'lmagan fayl qabul qilinmaydi")
+    void nonImageIsRejectedFromAlbum() throws Exception {
+        String token = adminToken();
+        int newsId = createNews(token, "Yaroqsiz albom fayli sinovi sarlavhasi", false);
+
+        MockMultipartFile pdf = new MockMultipartFile(
+                "files", "hujjat.pdf", "application/pdf", new byte[]{'%', 'P', 'D', 'F'});
+
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/news/{id}/images", newsId).file(pdf), token))
                 .andExpect(status().isBadRequest());
     }
 
@@ -285,5 +393,24 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
                         {"title": "Ruxsatsiz yangilik", "body": "Bu yaratilmasligi kerak."}
                         """))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ------------------------------------------------------------- yordamchilar
+
+    /** Albom uchun eng kichik yaroqli PNG - mazmuni muhim emas, MIME turi muhim. */
+    private MockMultipartFile image(String name) {
+        return new MockMultipartFile("files", name, "image/png", new byte[]{(byte) 0x89, 'P', 'N', 'G'});
+    }
+
+    private int createNews(String token, String title, boolean published) throws Exception {
+        String response = mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {"title": "%s", "body": "Sinov uchun yangilik matni.", "published": %s}
+                                """.formatted(title, published)),
+                        token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        return JsonPath.read(response, "$.id");
     }
 }

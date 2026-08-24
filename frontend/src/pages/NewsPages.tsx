@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { contentApi } from '../api/content';
+import { Gallery } from '../components/Gallery';
 import { Card, EmptyState, ErrorBox, Input, PageHeader, Pagination, Spinner } from '../components/ui';
 import { errorMessage } from '../lib/errors';
 import { formatDate } from '../lib/format';
@@ -54,11 +55,19 @@ export function NewsListPage() {
                   to={`/news/${item.slug}`}
                   className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md"
                 >
-                  {item.coverImageUrl ? (
-                    <img src={item.coverImageUrl} alt="" className="h-44 w-full object-cover" />
-                  ) : (
-                    <div className="h-44 w-full bg-gradient-to-br from-brand-100 to-brand-50" />
-                  )}
+                  <div className="relative">
+                    {item.coverImageUrl ? (
+                      <img src={item.coverImageUrl} alt="" className="h-44 w-full object-cover" />
+                    ) : (
+                      <div className="h-44 w-full bg-gradient-to-br from-brand-100 to-brand-50" />
+                    )}
+                    {/* Albom borligi ro'yxatdayoq ko'rinib tursin. */}
+                    {item.imageCount > 0 && (
+                      <span className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
+                        {t('news.imageCount', { count: item.imageCount })}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-1 flex-col p-5">
                     <h2 className="font-medium text-slate-900">{item.title}</h2>
                     {item.summary && (
@@ -126,6 +135,12 @@ export function NewsDetailPage() {
       <Card className="mt-6">
         <div className="prose-content text-slate-700">{news.body}</div>
       </Card>
+
+      {news.images.length > 0 && (
+        <div className="mt-8">
+          <Gallery images={news.images} />
+        </div>
+      )}
     </article>
   );
 }
