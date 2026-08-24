@@ -358,7 +358,12 @@
     "addImages": "Add photos",
     "imagesHint": "You can select several files at once. Only jpeg, png or webp.",
     "noImages": "The album is empty",
-    "uploadingImages": "Uploading..."
+    "uploadingImages": "Uploading...",
+    "newsDetail": "News item",
+    "openOnSite": "Open on site",
+    "noCover": "No cover image uploaded",
+    "replaceCover": "Replace cover",
+    "draftHint": "This item is a draft - it is not visible on the site yet"
   },
   "errors": {
     "network": "Could not reach the server. Check your connection and try again.",

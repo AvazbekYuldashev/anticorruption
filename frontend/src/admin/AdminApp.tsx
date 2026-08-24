@@ -27,6 +27,7 @@ import { AdminComplaintDetailPage } from './ComplaintDetailPage';
 import { UsersPage } from './UsersPage';
 import { FacultiesPage } from './FacultiesPage';
 import { NewsAdminPage } from './NewsAdminPage';
+import { NewsDetailAdminPage } from './NewsDetailAdminPage';
 import { StaffAdminPage } from './StaffAdminPage';
 import { PagesAdminPage } from './PagesAdminPage';
 import { LinksAdminPage } from './LinksAdminPage';
@@ -227,6 +228,7 @@ export function AdminApp() {
               <Route path="complaints" element={<AdminComplaintsPage />} />
               <Route path="complaints/:id" element={<AdminComplaintDetailPage />} />
               <Route path="news" element={<NewsAdminPage />} />
+              <Route path="news/:id" element={<NewsDetailAdminPage />} />
               <Route path="staff" element={<StaffAdminPage />} />
               <Route path="pages" element={<PagesAdminPage />} />
               <Route path="links" element={<LinksAdminPage />} />

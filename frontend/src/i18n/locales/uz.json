@@ -358,7 +358,12 @@
     "addImages": "Rasm qo'shish",
     "imagesHint": "Bir vaqtda bir nechta rasm tanlash mumkin. Faqat jpeg, png yoki webp.",
     "noImages": "Albom hozircha bo'sh",
-    "uploadingImages": "Yuklanmoqda..."
+    "uploadingImages": "Yuklanmoqda...",
+    "newsDetail": "Yangilik",
+    "openOnSite": "Saytda ochish",
+    "noCover": "Muqova rasmi yuklanmagan",
+    "replaceCover": "Muqovani almashtirish",
+    "draftHint": "Bu yangilik qoralama holatida - saytda hali ko'rinmaydi"
   },
   "errors": {
     "network": "Serverga ulanib bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",

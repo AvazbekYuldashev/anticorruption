@@ -9,7 +9,18 @@ import type { NewsImageResponse } from '../api/types';
  * bir nechta rasm, klaviatura bilan boshqarish va fon. Tayyor
  * galereya kutubxonalari buning uchun juda katta.
  */
-export function Gallery({ images }: { images: NewsImageResponse[] }) {
+interface GalleryProps {
+  images: NewsImageResponse[];
+  /**
+   * Berilsa har bir rasm ustida o'chirish tugmasi chiqadi.
+   * Admin panelda bir xil to'r ham ko'rish, ham boshqarish uchun ishlatiladi -
+   * shu tufayli ikkita alohida galereya yozilmagan.
+   */
+  onDelete?: (image: NewsImageResponse) => void;
+  deleteDisabled?: boolean;
+}
+
+export function Gallery({ images, onDelete, deleteDisabled }: GalleryProps) {
   const { t } = useTranslation();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -62,7 +73,7 @@ export function Gallery({ images }: { images: NewsImageResponse[] }) {
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {images.map((image, index) => (
-          <li key={image.id}>
+          <li key={image.id} className="relative">
             <button
               type="button"
               onClick={() => setOpenIndex(index)}
@@ -75,6 +86,19 @@ export function Gallery({ images }: { images: NewsImageResponse[] }) {
                 className="aspect-4/3 w-full object-cover transition-transform duration-200 group-hover:scale-105"
               />
             </button>
+
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(image)}
+                disabled={deleteDisabled}
+                aria-label={`${t('common.delete')}: ${image.originalName}`}
+                className="absolute top-1.5 right-1.5 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white hover:bg-red-600 disabled:opacity-50"
+              >
+                ×
+              </button>
+            )}
+
             {image.caption && (
               <p className="mt-1 text-xs text-slate-500">{image.caption}</p>
             )}
