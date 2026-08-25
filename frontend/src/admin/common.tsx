@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -13,7 +14,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { errorMessage } from '../lib/errors';
+import { errorMessage, fieldErrors } from '../lib/errors';
 
 /** Sarlavha va o'ng tomondagi asosiy amal tugmasi. */
 export function AdminPage({
@@ -83,15 +84,58 @@ export function QueryState({
   return <>{children}</>;
 }
 
-/** Amal xatoligi uchun qisqa xabar. */
+/**
+ * Xatolikni ko'rsatadi.
+ *
+ * <p>Validatsiya xatoligida umumiy xabar ("Kiritilgan ma'lumotlarda xatolik
+ * bor") qaysi maydonda muammo borligini aytmaydi - shuning uchun backend
+ * qaytargan maydonlar ro'yxati ham chiqariladi. Aks holda foydalanuvchi
+ * uzun shaklni ko'zi bilan qidirib chiqishga majbur bo'lardi.
+ */
 export function MutationError({ error }: { error: unknown }) {
   const { t } = useTranslation();
   if (!error) return null;
+
+  const fields = Object.entries(fieldErrors(error));
+
   return (
     <Alert severity="error" sx={{ mt: 2 }}>
       {errorMessage(error, t)}
+
+      {fields.length > 0 && (
+        <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.5 }}>
+          {fields.map(([field, message]) => (
+            <Box component="li" key={field}>
+              <Typography variant="body2" component="span">
+                <b>{fieldLabel(field, t)}</b> — {message}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
     </Alert>
   );
+}
+
+/**
+ * Maydon yo'lini o'qiladigan nomga aylantiradi.
+ *
+ * <p>Backend `questions[0].options` kabi yo'l yuboradi. Har bir bo'lak
+ * alohida tarjima qilinadi, raqam esa odam sanaydigan ko'rinishga
+ * o'tkaziladi (0 -> 1). Tarjimasi yo'q bo'lak o'z nomi bilan qoladi:
+ * noma'lum maydon ham hech narsadan ko'ra foydaliroq.
+ */
+function fieldLabel(path: string, t: TFunction): string {
+  return path
+    .split('.')
+    .map((segment) => {
+      const match = /^(\w+)\[(\d+)\]$/.exec(segment);
+      const name = match ? match[1] : segment;
+      const label = t(`admin.fieldNames.${name}`, name);
+
+      return match ? `${label} ${Number(match[2]) + 1}` : label;
+    })
+    .join(' · ');
 }
 
 const STATUS_COLORS: Record<
