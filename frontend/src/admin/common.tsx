@@ -157,6 +157,7 @@ export function FormDialog({
   onSubmit,
   children,
   maxWidth = 'sm',
+  submitLabel,
 }: {
   open: boolean;
   title: string;
@@ -166,6 +167,8 @@ export function FormDialog({
   onSubmit: () => void;
   children: ReactNode;
   maxWidth?: 'xs' | 'sm' | 'md';
+  /** Tasdiqlash tugmasi matni; berilmasa "Saqlash". */
+  submitLabel?: string;
 }) {
   const { t } = useTranslation();
 
@@ -189,7 +192,7 @@ export function FormDialog({
             {t('common.cancel')}
           </Button>
           <Button type="submit" variant="contained" disabled={busy}>
-            {t('common.save')}
+            {submitLabel ?? t('common.save')}
           </Button>
         </DialogActions>
       </form>

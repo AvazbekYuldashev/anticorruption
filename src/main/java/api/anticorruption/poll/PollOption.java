@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -15,9 +16,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** So'rovnoma javob varianti. */
+/** So'rovnoma savolining javob varianti. */
 @Entity
-@Table(name = "poll_options")
+@Table(
+        name = "poll_options",
+        indexes = @Index(name = "idx_poll_options_question", columnList = "question_id")
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,9 +33,17 @@ public class PollOption {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "poll_id", nullable = false)
-    private Poll poll;
+    /**
+     * Variant tegishli savol.
+     *
+     * <p>Ustun bazada null bo'lishi mumkin, chunki u mavjud jadvalga keyin
+     * qo'shilgan - ilgari variant to'g'ridan-to'g'ri so'rovnomaga bog'langan
+     * edi. Eski yozuvlarni {@code PollQuestionMigration} to'ldiradi, yangi
+     * yozuvda esa savol har doim qo'yiladi.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private PollQuestion question;
 
     @Column(nullable = false, length = 250)
     private String text;

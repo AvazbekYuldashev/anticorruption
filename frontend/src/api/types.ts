@@ -388,19 +388,67 @@ export interface PollOptionResponse {
   id: number;
   text: string;
   voteCount: number;
+  /** Shu savolga javob berganlarga nisbatan foiz. */
   percentage: number;
 }
 
+export interface PollQuestionResponse {
+  id: number;
+  text: string;
+  multipleChoice: boolean;
+  required: boolean;
+  answeredCount: number;
+  displayOrder: number;
+  options: PollOptionResponse[];
+}
+
+/**
+ * So'rovnoma holati.
+ *
+ * `SCHEDULED` va `STOPPED` faqat admin panelida uchraydi: boshlanmagan
+ * va qo'lda to'xtatilgan so'rovnoma ochiq ro'yxatga tushmaydi.
+ */
+export type PollStatus = 'DRAFT' | 'SCHEDULED' | 'OPEN' | 'STOPPED' | 'CLOSED';
+
 export interface PollResponse {
   id: number;
-  question: string;
+  title: string;
   description: string | null;
   active: boolean;
-  multipleChoice: boolean;
+  status: PollStatus;
+  statusLabel: string;
   openForVoting: boolean;
   alreadyVoted: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  /** Qo'lda to'xtatilgan vaqt; to'xtatilmagan bo'lsa null. */
+  stoppedAt: string | null;
+  /** Nechanchi marta o'tkazilayotgani. */
+  runNumber: number;
+  /** Oldingi o'tkazish; birinchisida null. */
+  previousPollId: number | null;
   voterCount: number;
-  options: PollOptionResponse[];
+  questionCount: number;
+  questions: PollQuestionResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PollStatisticsResponse {
+  pollId: number;
+  title: string;
+  status: PollStatus;
+  statusLabel: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  stoppedAt: string | null;
+  runNumber: number;
+  previousPollId: number | null;
+  voterCount: number;
+  questionCount: number;
+  /** Savollarning o'rtacha javoblanish darajasi, foizda. */
+  completionRate: number;
+  firstVoteAt: string | null;
+  lastVoteAt: string | null;
+  questions: PollQuestionResponse[];
 }

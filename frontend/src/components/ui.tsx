@@ -198,7 +198,7 @@ export function EmptyState({ message, children }: { message: string; children?: 
 // ---------------------------------------------------------------- holat nishoni
 
 /**
- * Murojaat holatini rangli nishon bilan ko'rsatadi.
+ * Murojaat yoki so'rovnoma holatini rangli nishon bilan ko'rsatadi.
  *
  * <p>Matn backend'dan keladi (joriy tilda), rang esa mashina qiymatiga
  * bog'lanadi - shuning uchun til o'zgarganda ranglar joyida qoladi.
@@ -209,6 +209,13 @@ const STATUS_COLORS: Record<string, string> = {
   NEED_INFO: 'bg-purple-50 text-purple-700 ring-purple-200',
   RESOLVED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   REJECTED: 'bg-slate-100 text-slate-600 ring-slate-300',
+
+  // So'rovnoma holatlari - nomlari murojaat holatlari bilan to'qnashmaydi
+  DRAFT: 'bg-slate-100 text-slate-600 ring-slate-300',
+  SCHEDULED: 'bg-blue-50 text-blue-700 ring-blue-200',
+  OPEN: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  STOPPED: 'bg-amber-50 text-amber-700 ring-amber-200',
+  CLOSED: 'bg-slate-100 text-slate-600 ring-slate-300',
 };
 
 export function StatusBadge({ status, label }: { status: string; label: string }) {

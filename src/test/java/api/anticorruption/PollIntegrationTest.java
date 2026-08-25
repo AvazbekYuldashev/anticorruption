@@ -4,96 +4,554 @@ import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** So'rovnomalar: yaratish, ovoz berish va takroriy ovozdan himoya. */
+/**
+ * So'rovnomalar: ko'p savolli anketa, mavsumiy muddat, ovoz berish,
+ * takroriy ovozdan himoya va statistika.
+ */
 class PollIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     @DisplayName("Tizimga kirgan foydalanuvchi ovoz beradi, ikkinchi marta bera olmaydi")
     void authenticatedUserVotesOnce() throws Exception {
-        String adminToken = adminToken();
-        PollIds poll = createPoll(adminToken, "Institutda korrupsiyaga qarshi ishlarni qanday baholaysiz?");
+        String poll = createPoll(adminToken(), "Institutda korrupsiyaga qarshi ish qanday?");
+        long questionId = id(poll, "$.questions[0].id");
+        long optionId = id(poll, "$.questions[0].options[0].id");
+        long otherId = id(poll, "$.questions[0].options[1].id");
 
         String voterToken = registerAndLogin("Ovoz Beruvchi", "ovoz1@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
-                        json(post("/api/v1/polls/{id}/vote", poll.pollId()), """
-                                {"optionIds": [%d]}
-                                """.formatted(poll.firstOptionId())),
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(questionId, optionId)),
                         voterToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.alreadyVoted").value(true))
                 .andExpect(jsonPath("$.voterCount").value(1))
-                .andExpect(jsonPath("$.options[0].voteCount").value(1))
-                .andExpect(jsonPath("$.options[0].percentage").value(100.0));
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[0].percentage").value(100.0));
 
         mockMvc.perform(authorized(
-                        json(post("/api/v1/polls/{id}/vote", poll.pollId()), """
-                                {"optionIds": [%d]}
-                                """.formatted(poll.secondOptionId())),
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(questionId, otherId)),
                         voterToken))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    @DisplayName("Bir tanlovli so'rovnomada bir nechta variant tanlab bo'lmaydi")
-    void singleChoicePollRejectsMultipleOptions() throws Exception {
-        String adminToken = adminToken();
-        PollIds poll = createPoll(adminToken, "Bir tanlovli so'rovnoma sinovi uchun savol");
+    @DisplayName("Har bir savolning javoblari alohida sanaladi")
+    void eachQuestionIsCountedSeparately() throws Exception {
+        String poll = createTwoQuestionPoll(adminToken(), true);
+        String voterToken = registerAndLogin("Ikki Savol", "ovoz5@test.uz", "Ovoz12345678!");
 
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [
+                                  {"questionId": %d, "optionIds": [%d]},
+                                  {"questionId": %d, "optionIds": [%d, %d]}
+                                ]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[1].id"),
+                                id(poll, "$.questions[1].id"),
+                                id(poll, "$.questions[1].options[0].id"),
+                                id(poll, "$.questions[1].options[2].id"))),
+                        voterToken))
+                .andExpect(status().isOk())
+                // Bitta ishtirokchi - ikkala savol ham javoblangan
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questionCount").value(2))
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[1].voteCount").value(1))
+                // Ko'p tanlovli savolda ikkita variant belgilangan, lekin javob bergan bitta
+                .andExpect(jsonPath("$.questions[1].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[1].options[0].voteCount").value(1))
+                .andExpect(jsonPath("$.questions[1].options[1].voteCount").value(0))
+                .andExpect(jsonPath("$.questions[1].options[2].voteCount").value(1));
+    }
+
+    @Test
+    @DisplayName("Majburiy bo'lmagan savolni tashlab ketish mumkin")
+    void optionalQuestionCanBeSkipped() throws Exception {
+        String poll = createTwoQuestionPoll(adminToken(), false);
+        String voterToken = registerAndLogin("Yarim Javob", "ovoz6@test.uz", "Ovoz12345678!");
+
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[1].answeredCount").value(0));
+    }
+
+    @Test
+    @DisplayName("Majburiy savol javobsiz qolsa ovoz qabul qilinmaydi")
+    void requiredQuestionMustBeAnswered() throws Exception {
+        String poll = createTwoQuestionPoll(adminToken(), true);
+        String voterToken = registerAndLogin("Chala Javob", "ovoz7@test.uz", "Ovoz12345678!");
+
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.questionRequired"));
+    }
+
+    @Test
+    @DisplayName("Bir tanlovli savolda bir nechta variant tanlab bo'lmaydi")
+    void singleChoiceQuestionRejectsMultipleOptions() throws Exception {
+        String poll = createPoll(adminToken(), "Bir tanlovli savol sinovi uchun matn");
         String voterToken = registerAndLogin("Ikki Tanlovchi", "ovoz2@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
-                        json(post("/api/v1/polls/{id}/vote", poll.pollId()), """
-                                {"optionIds": [%d, %d]}
-                                """.formatted(poll.firstOptionId(), poll.secondOptionId())),
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d, %d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"),
+                                id(poll, "$.questions[0].options[1].id"))),
                         voterToken))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.singleChoiceOnly"));
     }
 
     @Test
     @DisplayName("Boshqa so'rovnomaning varianti qabul qilinmaydi")
     void optionFromAnotherPollIsRejected() throws Exception {
-        String adminToken = adminToken();
-        PollIds first = createPoll(adminToken, "Birinchi so'rovnoma savoli sinov uchun");
-        PollIds second = createPoll(adminToken, "Ikkinchi so'rovnoma savoli sinov uchun");
+        String token = adminToken();
+        String first = createPoll(token, "Birinchi so'rovnoma savoli sinov uchun");
+        String second = createPoll(token, "Ikkinchi so'rovnoma savoli sinov uchun");
 
         String voterToken = registerAndLogin("Chalkash Ovoz", "ovoz3@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
-                        json(post("/api/v1/polls/{id}/vote", first.pollId()), """
-                                {"optionIds": [%d]}
-                                """.formatted(second.firstOptionId())),
+                        json(post("/api/v1/polls/{id}/vote", id(first, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(first, "$.questions[0].id"),
+                                id(second, "$.questions[0].options[0].id"))),
                         voterToken))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.unknownOption"));
     }
 
     @Test
     @DisplayName("Yopilgan so'rovnomada ovoz berib bo'lmaydi")
     void closedPollRejectsVotes() throws Exception {
-        String adminToken = adminToken();
-        PollIds poll = createPoll(adminToken, "Yopiladigan so'rovnoma savoli sinov uchun");
+        String token = adminToken();
+        String poll = createPoll(token, "Yopiladigan so'rovnoma savoli sinov uchun");
 
         mockMvc.perform(authorized(
-                        patch("/api/v1/admin/polls/{id}/active", poll.pollId()).param("active", "false"),
-                        adminToken))
+                        patch("/api/v1/admin/polls/{id}/active", id(poll, "$.id")).param("active", "false"),
+                        token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.active").value(false));
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.status").value("DRAFT"));
 
         String voterToken = registerAndLogin("Kech Qolgan", "ovoz4@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
-                        json(post("/api/v1/polls/{id}/vote", poll.pollId()), """
-                                {"optionIds": [%d]}
-                                """.formatted(poll.firstOptionId())),
+                        json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
                         voterToken))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.closed"));
     }
+
+    // ------------------------------------------------------------- mavsumiylik
+
+    @Test
+    @DisplayName("Boshlanish sanasi kelmagan so'rovnoma ochiq ro'yxatda ko'rinmaydi")
+    void scheduledPollIsHiddenUntilItStarts() throws Exception {
+        String poll = createScheduledPoll(
+                adminToken(),
+                "Kelasi oy boshlanadigan so'rovnoma",
+                Instant.now().plus(Duration.ofDays(7)),
+                Instant.now().plus(Duration.ofDays(14)));
+
+        mockMvc.perform(authorized(
+                        get("/api/v1/admin/polls/{id}", id(poll, "$.id")), adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SCHEDULED"))
+                .andExpect(jsonPath("$.openForVoting").value(false));
+
+        mockMvc.perform(get("/api/v1/polls"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(id(poll, "$.id"))).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Muddati tugagan so'rovnoma ko'rinadi, lekin ovoz qabul qilmaydi")
+    void endedPollStaysVisibleWithoutAcceptingVotes() throws Exception {
+        String poll = createScheduledPoll(
+                adminToken(),
+                "Muddati tugagan so'rovnoma sinovi",
+                Instant.now().minus(Duration.ofDays(14)),
+                Instant.now().minus(Duration.ofDays(1)));
+
+        long pollId = id(poll, "$.id");
+
+        mockMvc.perform(get("/api/v1/polls"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)].status".formatted(pollId)).value("CLOSED"));
+
+        String voterToken = registerAndLogin("Kechikkan", "ovoz8@test.uz", "Ovoz12345678!");
+
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.closed"));
+    }
+
+    // ------------------------------------------------------------- to'xtatish
+
+    @Test
+    @DisplayName("Qo'lda to'xtatilgan so'rovnoma saytda ko'rinmaydi, statistikasi esa qoladi")
+    void stoppedPollIsHiddenButKeepsItsStatistics() throws Exception {
+        String token = adminToken();
+        String poll = createPoll(token, "To'xtatiladigan so'rovnoma sinovi");
+        long pollId = id(poll, "$.id");
+
+        String voterToken = registerAndLogin("To'xtashdan Oldin", "ovoz13@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(
+                        patch("/api/v1/admin/polls/{id}/stopped", pollId).param("stopped", "true"),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("STOPPED"))
+                .andExpect(jsonPath("$.stoppedAt").isNotEmpty())
+                .andExpect(jsonPath("$.openForVoting").value(false));
+
+        // Saytda ko'rinmaydi
+        mockMvc.perform(get("/api/v1/polls"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(pollId)).isEmpty());
+
+        // Admin panelidagi statistika joyida
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}/statistics", pollId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("STOPPED"))
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1));
+
+        // Ovoz ham qabul qilinmaydi
+        String lateVoter = registerAndLogin("Kech Kelgan", "ovoz14@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        lateVoter))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.closed"));
+    }
+
+    @Test
+    @DisplayName("To'xtatilgan so'rovnomani davom ettirish mumkin")
+    void stoppedPollCanBeResumed() throws Exception {
+        String token = adminToken();
+        long pollId = id(createPoll(token, "Davom ettiriladigan so'rovnoma sinovi"), "$.id");
+
+        mockMvc.perform(authorized(
+                        patch("/api/v1/admin/polls/{id}/stopped", pollId).param("stopped", "true"),
+                        token))
+                .andExpect(status().isOk());
+
+        // Ikkinchi marta to'xtatib bo'lmaydi
+        mockMvc.perform(authorized(
+                        patch("/api/v1/admin/polls/{id}/stopped", pollId).param("stopped", "true"),
+                        token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.alreadyStopped"));
+
+        mockMvc.perform(authorized(
+                        patch("/api/v1/admin/polls/{id}/stopped", pollId).param("stopped", "false"),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.stoppedAt").doesNotExist());
+    }
+
+    // ------------------------------------------------------------- qayta o'tkazish
+
+    @Test
+    @DisplayName("Qayta o'tkazish yangi so'rovnoma ochadi, eskisining hisoboti tegilmaydi")
+    void restartStartsAFreshRunAndLeavesThePreviousOneIntact() throws Exception {
+        String token = adminToken();
+        String poll = createPoll(token, "Har yili takrorlanadigan so'rovnoma");
+        long firstId = id(poll, "$.id");
+
+        String voterToken = registerAndLogin("Birinchi Mavsum", "ovoz15@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", firstId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk());
+
+        String restarted = mockMvc.perform(authorized(
+                        post("/api/v1/admin/polls/{id}/restart", firstId), token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.runNumber").value(2))
+                .andExpect(jsonPath("$.previousPollId").value((int) firstId))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                // Yangi o'tkazish noldan boshlanadi
+                .andExpect(jsonPath("$.voterCount").value(0))
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(0))
+                .andExpect(jsonPath("$.questions[0].options.length()").value(3))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(0))
+                .andReturn().getResponse().getContentAsString();
+
+        long secondId = id(restarted, "$.id");
+
+        // Eskisi to'xtatilgan, lekin hisoboti butun
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}/statistics", firstId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("STOPPED"))
+                .andExpect(jsonPath("$.runNumber").value(1))
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1));
+
+        // Ilgari ovoz bergan odam yangi o'tkazishda yana ovoz bera oladi
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", secondId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(restarted, "$.questions[0].id"),
+                                id(restarted, "$.questions[0].options[1].id"))),
+                        voterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[1].voteCount").value(1));
+
+        // Yangi ovoz eskisiga qo'shilib ketmagan
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}", firstId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[1].voteCount").value(0));
+
+        // Saytda faqat yangi o'tkazish ko'rinadi
+        mockMvc.perform(get("/api/v1/polls"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(firstId)).isEmpty())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(secondId)).isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("Oldingi o'tkazish o'chirilsa yangisi joyida qoladi")
+    void deletingAPreviousRunKeepsTheNewOne() throws Exception {
+        String token = adminToken();
+        long firstId = id(createPoll(token, "O'chiriladigan oldingi o'tkazish"), "$.id");
+
+        long secondId = id(mockMvc.perform(authorized(
+                                post("/api/v1/admin/polls/{id}/restart", firstId), token))
+                        .andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString(),
+                "$.id");
+
+        mockMvc.perform(authorized(delete("/api/v1/admin/polls/{id}", firstId), token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}", secondId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.runNumber").value(2))
+                .andExpect(jsonPath("$.previousPollId").doesNotExist());
+    }
+
+    // ------------------------------------------------------------- statistika
+
+    @Test
+    @DisplayName("Statistika savollar kesimida ishtirok darajasini ko'rsatadi")
+    void statisticsReportParticipationPerQuestion() throws Exception {
+        String token = adminToken();
+        String poll = createTwoQuestionPoll(token, false);
+        long pollId = id(poll, "$.id");
+
+        String voterToken = registerAndLogin("Statistik", "ovoz9@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}/statistics", pollId), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voterCount").value(1))
+                .andExpect(jsonPath("$.questionCount").value(2))
+                // Ikkita savoldan bittasi javoblangan
+                .andExpect(jsonPath("$.completionRate").value(50.0))
+                .andExpect(jsonPath("$.firstVoteAt").isNotEmpty())
+                .andExpect(jsonPath("$.lastVoteAt").isNotEmpty())
+                .andExpect(jsonPath("$.questions[0].options[0].percentage").value(100.0))
+                .andExpect(jsonPath("$.questions[1].answeredCount").value(0));
+    }
+
+    @Test
+    @DisplayName("Tahrirlashda id si yuborilgan variant ovozlarini saqlab qoladi")
+    void updateKeepsVotesOfExistingOptions() throws Exception {
+        String token = adminToken();
+        String poll = createPoll(token, "Tahrirlanadigan so'rovnoma savoli sinov");
+        long pollId = id(poll, "$.id");
+        long questionId = id(poll, "$.questions[0].id");
+        long keptOptionId = id(poll, "$.questions[0].options[0].id");
+
+        String voterToken = registerAndLogin("Tahrir Ovozi", "ovoz10@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(questionId, keptOptionId)),
+                        voterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/polls/{id}", pollId), """
+                                {
+                                  "title": "Tahrirlangan so'rovnoma sarlavhasi",
+                                  "questions": [{
+                                    "id": %d,
+                                    "text": "Tahrirlangan savol matni",
+                                    "options": [
+                                      {"id": %d, "text": "Yaxshi"},
+                                      {"text": "Yangi variant"}
+                                    ]
+                                  }]
+                                }
+                                """.formatted(questionId, keptOptionId)),
+                        token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Tahrirlangan so'rovnoma sarlavhasi"))
+                .andExpect(jsonPath("$.questions[0].text").value("Tahrirlangan savol matni"))
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options.length()").value(2))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[1].voteCount").value(0));
+    }
+
+    @Test
+    @DisplayName("Ovoz berilgan variant o'chirilsa ovozlari ham o'chadi va hisob tiklanadi")
+    void removingAnOptionRemovesItsVotes() throws Exception {
+        String token = adminToken();
+        String poll = createTwoQuestionPoll(token, false);
+        long pollId = id(poll, "$.id");
+        long firstQuestionId = id(poll, "$.questions[0].id");
+        long secondQuestionId = id(poll, "$.questions[1].id");
+
+        // Ishtirokchi ikkala savolga javob beradi
+        String voterToken = registerAndLogin("Ovozi Ochadi", "ovoz11@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [
+                                  {"questionId": %d, "optionIds": [%d]},
+                                  {"questionId": %d, "optionIds": [%d]}
+                                ]}
+                                """.formatted(
+                                firstQuestionId, id(poll, "$.questions[0].options[0].id"),
+                                secondQuestionId, id(poll, "$.questions[1].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions[1].answeredCount").value(1));
+
+        // Ikkinchi savolning ovoz berilgan varianti ro'yxatdan chiqariladi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/polls/{id}", pollId), """
+                                {
+                                  "title": "Variant olib tashlangan so'rovnoma",
+                                  "questions": [
+                                    {"id": %d, "text": "Korrupsiyaga duch kelganmisiz?",
+                                     "options": [{"id": %d, "text": "Ha"}, {"id": %d, "text": "Yo'q"}]},
+                                    {"id": %d, "text": "Qaysi yo'nalishlarni kuchaytirish kerak?",
+                                     "multipleChoice": true, "required": false,
+                                     "options": [{"id": %d, "text": "Stipendiya"}, {"id": %d, "text": "Yotoqxona"}]}
+                                  ]
+                                }
+                                """.formatted(
+                                firstQuestionId,
+                                id(poll, "$.questions[0].options[0].id"),
+                                id(poll, "$.questions[0].options[1].id"),
+                                secondQuestionId,
+                                id(poll, "$.questions[1].options[1].id"),
+                                id(poll, "$.questions[1].options[2].id"))),
+                        token))
+                .andExpect(status().isOk())
+                // Birinchi savol tegilmagan - ovozi joyida
+                .andExpect(jsonPath("$.questions[0].answeredCount").value(1))
+                .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1))
+                // Ikkinchi savolning yagona ovozi o'chirilgan variantda edi
+                .andExpect(jsonPath("$.questions[1].options.length()").value(2))
+                .andExpect(jsonPath("$.questions[1].answeredCount").value(0))
+                // Ishtirokchi birinchi savolga javob berganicha qolyapti
+                .andExpect(jsonPath("$.voterCount").value(1));
+    }
+
+    @Test
+    @DisplayName("Ovoz berilgan so'rovnoma ovozlari bilan birga o'chadi")
+    void pollWithVotesCanBeDeleted() throws Exception {
+        String token = adminToken();
+        String poll = createPoll(token, "O'chiriladigan so'rovnoma sinovi uchun");
+        long pollId = id(poll, "$.id");
+
+        String voterToken = registerAndLogin("O'chiruvchi", "ovoz12@test.uz", "Ovoz12345678!");
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/polls/{id}/vote", pollId), """
+                                {"answers": [{"questionId": %d, "optionIds": [%d]}]}
+                                """.formatted(
+                                id(poll, "$.questions[0].id"),
+                                id(poll, "$.questions[0].options[0].id"))),
+                        voterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(delete("/api/v1/admin/polls/{id}", pollId), token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(authorized(get("/api/v1/admin/polls/{id}", pollId), token))
+                .andExpect(status().isNotFound());
+    }
+
+    // ------------------------------------------------------------- tekshiruvlar
 
     @Test
     @DisplayName("Faol so'rovnomalar ro'yxati autentifikatsiyasiz ochiq")
@@ -102,24 +560,41 @@ class PollIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/v1/polls"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].question").isNotEmpty())
-                .andExpect(jsonPath("$[0].options").isArray())
+                .andExpect(jsonPath("$[0].title").isNotEmpty())
+                .andExpect(jsonPath("$[0].questions").isArray())
+                .andExpect(jsonPath("$[0].status").value("OPEN"))
+                .andExpect(jsonPath("$[0].statusLabel").value("Ochiq"))
                 .andExpect(jsonPath("$[0].openForVoting").value(true));
     }
 
     @Test
-    @DisplayName("Kamida ikkita variant bo'lishi shart")
-    void pollNeedsAtLeastTwoOptions() throws Exception {
+    @DisplayName("Savolda kamida ikkita variant bo'lishi shart")
+    void questionNeedsAtLeastTwoOptions() throws Exception {
         mockMvc.perform(authorized(
                         json(post("/api/v1/admin/polls"), """
                                 {
-                                  "question": "Bitta variantli so'rovnoma savoli",
-                                  "options": [{"text": "Yagona variant"}]
+                                  "title": "Bitta variantli so'rovnoma sinovi",
+                                  "questions": [{
+                                    "text": "Bitta variantli savol",
+                                    "options": [{"text": "Yagona variant"}]
+                                  }]
                                 }
                                 """),
                         adminToken()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fields.options").exists());
+                .andExpect(jsonPath("$.fields").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("Savolsiz so'rovnoma qabul qilinmaydi")
+    void pollWithoutQuestionsIsRejected() throws Exception {
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/polls"), """
+                                {"title": "Savolsiz so'rovnoma sinovi", "questions": []}
+                                """),
+                        adminToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.questions").exists());
     }
 
     @Test
@@ -128,41 +603,100 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(authorized(
                         json(post("/api/v1/admin/polls"), """
                                 {
-                                  "question": "Noto'g'ri vaqt oynasi bilan so'rovnoma",
+                                  "title": "Noto'g'ri vaqt oynasi bilan so'rovnoma",
                                   "startsAt": "2026-06-01T00:00:00Z",
                                   "endsAt": "2026-05-01T00:00:00Z",
-                                  "options": [{"text": "Ha"}, {"text": "Yo'q"}]
+                                  "questions": [{
+                                    "text": "Vaqt oynasi sinovi savoli",
+                                    "options": [{"text": "Ha"}, {"text": "Yo'q"}]
+                                  }]
                                 }
                                 """),
                         adminToken()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.poll.invalidWindow"));
     }
 
     // ------------------------------------------------------------- yordamchilar
 
-    private PollIds createPoll(String token, String question) throws Exception {
-        String response = mockMvc.perform(authorized(
+    /** Bitta savolli, uchta variantli oddiy so'rovnoma. */
+    private String createPoll(String token, String title) throws Exception {
+        return mockMvc.perform(authorized(
                         json(post("/api/v1/admin/polls"), """
                                 {
-                                  "question": "%s",
-                                  "options": [
-                                    {"text": "Yaxshi"},
-                                    {"text": "Qoniqarli"},
-                                    {"text": "Yomon"}
-                                  ]
+                                  "title": "%s",
+                                  "questions": [{
+                                    "text": "Institutda korrupsiyaga qarshi ishni baholang",
+                                    "options": [
+                                      {"text": "Yaxshi"},
+                                      {"text": "Qoniqarli"},
+                                      {"text": "Yomon"}
+                                    ]
+                                  }]
                                 }
-                                """.formatted(question)),
+                                """.formatted(title)),
                         token))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.options.length()").value(3))
+                .andExpect(jsonPath("$.questions[0].options.length()").value(3))
                 .andReturn().getResponse().getContentAsString();
-
-        return new PollIds(
-                ((Number) JsonPath.read(response, "$.id")).longValue(),
-                ((Number) JsonPath.read(response, "$.options[0].id")).longValue(),
-                ((Number) JsonPath.read(response, "$.options[1].id")).longValue());
     }
 
-    private record PollIds(long pollId, long firstOptionId, long secondOptionId) {
+    /**
+     * Ikkita savolli so'rovnoma: birinchisi bir tanlovli, ikkinchisi ko'p tanlovli.
+     *
+     * @param secondRequired ikkinchi savolga javob berish majburiymi
+     */
+    private String createTwoQuestionPoll(String token, boolean secondRequired) throws Exception {
+        return mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/polls"), """
+                                {
+                                  "title": "Ikki savolli anketa sinovi",
+                                  "questions": [
+                                    {
+                                      "text": "Korrupsiyaga duch kelganmisiz?",
+                                      "options": [{"text": "Ha"}, {"text": "Yo'q"}]
+                                    },
+                                    {
+                                      "text": "Qaysi yo'nalishlarni kuchaytirish kerak?",
+                                      "multipleChoice": true,
+                                      "required": %s,
+                                      "options": [
+                                        {"text": "Imtihonlar"},
+                                        {"text": "Stipendiya"},
+                                        {"text": "Yotoqxona"}
+                                      ]
+                                    }
+                                  ]
+                                }
+                                """.formatted(secondRequired)),
+                        token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.questionCount").value(2))
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    /** Muddati belgilangan so'rovnoma. */
+    private String createScheduledPoll(String token, String title, Instant startsAt, Instant endsAt)
+            throws Exception {
+
+        return mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/polls"), """
+                                {
+                                  "title": "%s",
+                                  "startsAt": "%s",
+                                  "endsAt": "%s",
+                                  "questions": [{
+                                    "text": "Mavsumiy so'rovnoma savoli",
+                                    "options": [{"text": "Ha"}, {"text": "Yo'q"}]
+                                  }]
+                                }
+                                """.formatted(title, startsAt, endsAt)),
+                        token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private long id(String json, String path) {
+        return ((Number) JsonPath.read(json, path)).longValue();
     }
 }

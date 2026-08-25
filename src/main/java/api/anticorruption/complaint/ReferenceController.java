@@ -3,6 +3,7 @@ package api.anticorruption.complaint;
 import api.anticorruption.common.LabeledEnum;
 import api.anticorruption.common.i18n.AppLanguage;
 import api.anticorruption.common.i18n.Translator;
+import api.anticorruption.poll.PollStatus;
 import api.anticorruption.complaint.dto.EnumOption;
 import api.anticorruption.university.UniversityService;
 import api.anticorruption.university.dto.DepartmentResponse;
@@ -107,6 +108,7 @@ public class ReferenceController {
         reference.put("studyForms", options(StudyForm.values()));
         reference.put("positions", options(AccusedPosition.values()));
         reference.put("roles", options(Role.values()));
+        reference.put("pollStatuses", options(PollStatus.values()));
         reference.put("faculties", universityService.listActiveFaculties());
         return ResponseEntity.ok(reference);
     }

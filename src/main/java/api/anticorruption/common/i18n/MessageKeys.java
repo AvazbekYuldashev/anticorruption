@@ -106,9 +106,14 @@ public final class MessageKeys {
     public static final String POLL_ALREADY_VOTED = "error.poll.alreadyVoted";
     public static final String POLL_SINGLE_CHOICE_ONLY = "error.poll.singleChoiceOnly";
     public static final String POLL_UNKNOWN_OPTION = "error.poll.unknownOption";
+    public static final String POLL_UNKNOWN_QUESTION = "error.poll.unknownQuestion";
+    public static final String POLL_DUPLICATE_ANSWER = "error.poll.duplicateAnswer";
+    public static final String POLL_QUESTION_REQUIRED = "error.poll.questionRequired";
     public static final String POLL_ALREADY_ACTIVE = "error.poll.alreadyActive";
     public static final String POLL_ALREADY_CLOSED = "error.poll.alreadyClosed";
     public static final String POLL_INVALID_WINDOW = "error.poll.invalidWindow";
+    public static final String POLL_ALREADY_STOPPED = "error.poll.alreadyStopped";
+    public static final String POLL_NOT_STOPPED = "error.poll.notStopped";
 
     // ---------------------------------------------------------------- statistika
 

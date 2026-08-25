@@ -11,20 +11,25 @@ import java.util.List;
 /**
  * So'rovnoma yaratish yoki tahrirlash.
  *
- * <p>Variantlar to'liq ro'yxat sifatida yuboriladi: ro'yxatda yo'q variant
- * o'chiriladi. Tahrirlashda mavjud variantning {@code id} sini yuborish kerak -
- * aks holda u yangi variant deb qaraladi va ovozlari yo'qoladi.
+ * <p>Savollar va variantlar to'liq ro'yxat sifatida yuboriladi: ro'yxatda
+ * yo'q yozuv o'chiriladi. Tahrirlashda mavjud savol yoki variantning
+ * {@code id} sini yuborish kerak - aks holda u yangi deb qaraladi va
+ * ovozlari yo'qoladi.
+ *
+ * <p>Yuqori chegaralar mahsulot cheklovi emas, so'rov hajmini oqilona
+ * ushlab turish uchun: amalda universitet anketasi bunga yaqinlashmaydi.
+ *
+ * @param startsAt null bo'lsa so'rovnoma faollashtirilishi bilan boshlanadi
+ * @param endsAt   null bo'lsa qo'lda yopilgunicha davom etadi
  */
 public record SavePollRequest(
 
         @NotBlank(message = "{validation.required}")
         @Size(min = 5, max = 300, message = "{validation.size}")
-        String question,
+        String title,
 
         @Size(max = 1000, message = "{validation.size.max}")
         String description,
-
-        Boolean multipleChoice,
 
         Boolean active,
 
@@ -32,11 +37,32 @@ public record SavePollRequest(
 
         Instant endsAt,
 
-        @NotEmpty(message = "{validation.required}")
-        @Size(min = 2, max = 20, message = "{validation.poll.options.size}")
+        @NotEmpty(message = "{validation.poll.questions.required}")
+        @Size(max = 200, message = "{validation.size.max}")
         @Valid
-        List<SavePollOptionRequest> options
+        List<SavePollQuestionRequest> questions
 ) {
+    /** Bitta savol. */
+    public record SavePollQuestionRequest(
+
+            /* Mavjud savolni ovozlari bilan saqlab qolish uchun; yangi savolda null. */
+            Long id,
+
+            @NotBlank(message = "{validation.required}")
+            @Size(min = 3, max = 300, message = "{validation.size}")
+            String text,
+
+            Boolean multipleChoice,
+
+            Boolean required,
+
+            @NotEmpty(message = "{validation.required}")
+            @Size(min = 2, max = 50, message = "{validation.poll.options.size}")
+            @Valid
+            List<SavePollOptionRequest> options
+    ) {
+    }
+
     /** Bitta variant. */
     public record SavePollOptionRequest(
 

@@ -25,7 +25,7 @@ Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
 | **Murojaatlar ro'yxati** | Ochiq reyestr: kategoriya, fakultet, maqom va sanalar bilan; qidiruv va filtrlar |
 | **Yangiliklar** | Blokli muharrir (sarlavha, formatlangan matn, yakka rasm, albom), qoralama/chop etish, muqova, qidiruv, ko'rishlar hisobi |
 | **Xodimlar** | Lavozim, ilmiy daraja, qabul vaqti, surat, tartib raqami |
-| **So'rovnomalar** | Ovoz berish, takroriy ovozdan himoya, jonli natijalar va foizlar |
+| **So'rovnomalar** | Cheklanmagan sondagi savol, mavsumiy muddat, qo'lda to'xtatish, qayta o'tkazish, takroriy ovozdan himoya, savollar kesimidagi statistika |
 | **Bo'lim haqida** | Admin panelidan tahrirlanadigan istalgan sondagi matnli sahifa |
 | **Foydali linklar** | Guruhlangan, tartiblangan havolalar |
 | **Reytinglar** | Fakultetlar kesimi statistikadan avtomatik hisoblanadi |
@@ -97,7 +97,7 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 | `GET` | `/api/v1/news` · `/news/{slug}` | Yangiliklar |
 | `GET` | `/api/v1/staff` · `/pages` · `/pages/{slug}` · `/links` | Xodimlar, sahifalar, havolalar |
 | `GET` | `/api/v1/polls` · `/polls/{id}` | So'rovnomalar |
-| `POST` | `/api/v1/polls/{id}/vote` | Ovoz berish |
+| `POST` | `/api/v1/polls/{id}/vote` | Butun so'rovnomaga bir marta javob berish |
 | `GET` | `/api/v1/media/{fayl}` | Yangilik va xodim rasmlari |
 
 ### Foydalanuvchi uchun
@@ -114,6 +114,9 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 | `PATCH` | `/api/v1/admin/complaints/{id}/assign` | Mas'ul xodimni belgilash |
 | `PATCH` | `/api/v1/admin/complaints/{id}/register-visibility` | Reyestrdan yashirish |
 | — | `/api/v1/admin/news` · `/staff` · `/pages` · `/links` · `/polls` | Kontent CRUD |
+| `GET` | `/api/v1/admin/polls/{id}/statistics` | So'rovnoma hisoboti |
+| `PATCH` | `/api/v1/admin/polls/{id}/stopped` | Qo'lda to'xtatish yoki davom ettirish |
+| `POST` | `/api/v1/admin/polls/{id}/restart` | Qayta o'tkazish (yangi o'tkazish ochadi) |
 
 ### Faqat administrator
 
@@ -230,6 +233,21 @@ qolgan teg saytga begona skript kiritish yo'lini ochib berardi. Belgilar esa
 hech qachon HTML ga aylanmaydi: `frontend/src/lib/richText.tsx` faqat sanab
 o'tilgan elementlarni yasaydi, havolalarda esa `http`, `https` va `mailto` dan
 boshqa sxemalar oddiy matn bo'lib qoladi.
+
+**So'rovnoma qayta o'tkazilganda yangi yozuv ochiladi.** Eski o'tkazishning
+hisobotini tozalab, hisoblagichlarni noldan boshlash ham mumkin edi, lekin unda
+o'tgan mavsum natijalari yo'qolardi. Shu sababli "qayta o'tkazish" savollar
+nusxasi bilan yangi so'rovnoma yaratadi va eskisini to'xtatadi: ikkala hisobot
+ham to'liq qoladi, `previousPollId` esa ularni bir-biriga bog'lab turadi. Yangi
+so'rovnomaning id si boshqa bo'lgani uchun ilgari ovoz berganlar yana ovoz bera
+oladi.
+
+**To'xtatilgan va muddati tugagan so'rovnoma bir xil emas.** Muddati tugagani
+saytda natijalari bilan qoladi - odamlar nima bilan yakunlanganini ko'rishi
+kerak. Qo'lda to'xtatilgani esa saytdan olib tashlanadi, lekin admin panelida
+statistikasi joyida turadi. Holat saqlanmaydi: u `active`, `stoppedAt` va
+sanalardan hisoblanadi, shuning uchun muddati tugaganda uni kimdir yangilab
+turishi shart emas.
 
 **Enum cheklovi ishga tushishda tekislanadi.** `ddl-auto=update` mavjud
 `CHECK` cheklovini yangilamaydi, shuning uchun enumga yangi blok turi
