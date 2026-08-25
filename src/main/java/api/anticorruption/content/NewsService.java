@@ -9,7 +9,6 @@ import api.anticorruption.common.exception.BadRequestException;
 import api.anticorruption.common.exception.ResourceNotFoundException;
 import api.anticorruption.common.i18n.MessageKeys;
 import api.anticorruption.content.dto.NewsDetailResponse;
-import api.anticorruption.content.dto.NewsImageResponse;
 import api.anticorruption.content.dto.NewsSummaryResponse;
 import api.anticorruption.content.dto.SaveNewsRequest;
 import lombok.RequiredArgsConstructor;
@@ -21,13 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-/** Yangiliklar bo'limi va ularning rasm albomi. */
+/** Yangiliklar bo'limi va ularning blokli mazmuni. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +37,7 @@ public class NewsService {
     private static final int MAX_SLUG_ATTEMPTS = 50;
 
     private final NewsRepository newsRepository;
-    private final NewsImageRepository newsImageRepository;
+    private final NewsBlockRepository newsBlockRepository;
     private final FileStorageService fileStorageService;
     private final StorageProperties storageProperties;
 
@@ -86,13 +87,15 @@ public class NewsService {
                 .slug(uniqueSlug(request.title(), null))
                 .title(request.title().trim())
                 .summary(blankToNull(request.summary()))
-                .body(request.body().trim())
                 .published(published)
                 .publishedAt(published ? Instant.now() : null)
                 .build();
 
+        applyBlocks(news, request.blocks());
         newsRepository.save(news);
-        log.info("Yangilik yaratildi: {} (chop etilgan: {})", news.getSlug(), published);
+
+        log.info("Yangilik yaratildi: {} ({} ta blok, chop etilgan: {})",
+                news.getSlug(), news.getBlocks().size(), published);
 
         return NewsDetailResponse.from(news);
     }
@@ -109,13 +112,20 @@ public class NewsService {
 
         news.setTitle(request.title().trim());
         news.setSummary(blankToNull(request.summary()));
-        news.setBody(request.body().trim());
 
         if (request.published() != null) {
             applyPublishState(news, request.published());
         }
 
+        // Ro'yxatdan chiqarilgan rasmlarni keyin diskdan ham o'chiramiz.
+        Set<String> before = imageNames(news);
+        applyBlocks(news, request.blocks());
         newsRepository.save(news);
+
+        Set<String> removed = new HashSet<>(before);
+        removed.removeAll(imageNames(news));
+        removed.forEach(name -> fileStorageService.delete(name, StorageArea.PUBLIC));
+
         return NewsDetailResponse.from(news);
     }
 
@@ -150,11 +160,10 @@ public class NewsService {
         News news = requireNews(newsId);
 
         // Fayl nomlari entity o'chirilgunicha yig'ib olinadi.
-        List<String> files = new ArrayList<>();
+        Set<String> files = new HashSet<>(imageNames(news));
         if (news.getCoverImage() != null) {
             files.add(news.getCoverImage());
         }
-        news.getImages().forEach(image -> files.add(image.getStoredName()));
 
         newsRepository.delete(news);
         files.forEach(name -> fileStorageService.delete(name, StorageArea.PUBLIC));
@@ -162,60 +171,121 @@ public class NewsService {
         log.info("Yangilik o'chirildi: id={} ({} ta fayl bilan)", newsId, files.size());
     }
 
-    // ---------------------------------------------------------------- albom
+    // ---------------------------------------------------------------- bloklar
 
     /**
-     * Albomga bir nechta rasm qo'shadi.
+     * Blok ro'yxatini to'liq almashtiradi.
      *
-     * <p>Fayllar bittalab tekshiriladi va saqlanadi: agar oxirgi fayl
-     * yaroqsiz bo'lsa, undan oldingilari ham saqlanmaydi - tranzaksiya
-     * qaytariladi. Diskka yozilgan fayllar esa qaytarilmaydi, shuning uchun
-     * chegara va tur tekshiruvi yozishdan oldin bajariladi.
+     * <p>Mavjud bloklar tozalanib, so'rovdagi tartibda qaytadan yasaladi.
+     * Bloklarni id bo'yicha solishtirib yangilash ham mumkin edi, lekin
+     * bu yerda foyda bermaydi: blokda saqlanadigan narsa matn yoki fayl
+     * nomi, ikkalasi ham arzon. Almashtirish esa tartibni chalkashtirmaydi.
      */
-    @Transactional
-    public List<NewsImageResponse> addImages(Long newsId, List<MultipartFile> files) {
-        News news = requireNews(newsId);
+    private void applyBlocks(News news, List<SaveNewsRequest.SaveNewsBlockRequest> requested) {
+        news.getBlocks().clear();
 
-        List<MultipartFile> selected = files == null
-                ? List.of()
-                : files.stream().filter(file -> file != null && !file.isEmpty()).toList();
-
-        if (selected.isEmpty()) {
-            throw new BadRequestException(MessageKeys.FILE_NONE_SELECTED);
+        if (requested == null) {
+            news.setBody("");
+            return;
         }
 
-        long existing = newsImageRepository.countByNewsId(newsId);
-        int limit = storageProperties.maxImagesPerNews();
-        if (existing + selected.size() > limit) {
-            throw new BadRequestException(MessageKeys.NEWS_TOO_MANY_IMAGES, limit);
+        int order = 0;
+        for (SaveNewsRequest.SaveNewsBlockRequest item : requested) {
+            news.getBlocks().add(buildBlock(news, item, order++));
         }
 
-        int order = newsImageRepository.maxDisplayOrder(newsId) + 1;
-        List<NewsImage> saved = new ArrayList<>(selected.size());
-
-        for (MultipartFile file : selected) {
-            NewsImage image = NewsImage.builder()
-                    .news(news)
-                    .storedName(fileStorageService.store(file, StorageArea.PUBLIC))
-                    .originalName(fileStorageService.sanitizeOriginalName(file.getOriginalFilename()))
-                    .displayOrder(order++)
-                    .build();
-            saved.add(newsImageRepository.save(image));
+        // Chegara butun yangilik bo'yicha: yakka rasmlar va albom rasmlari birga
+        // hisoblanadi, chunki sahifani og'irlashtiradigan narsa umumiy son.
+        int images = imageNames(news).size();
+        if (images > storageProperties.maxImagesPerNews()) {
+            throw new BadRequestException(
+                    MessageKeys.NEWS_TOO_MANY_IMAGES, storageProperties.maxImagesPerNews());
         }
 
-        log.info("Yangilik {} albomiga {} ta rasm qo'shildi", newsId, saved.size());
-        return saved.stream().map(NewsImageResponse::from).toList();
+        news.setBody(joinText(news));
     }
 
-    @Transactional
-    public void deleteImage(Long newsId, Long imageId) {
-        NewsImage image = newsImageRepository.findByIdAndNewsId(imageId, newsId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        MessageKeys.NOT_FOUND_NEWS_IMAGE, imageId));
+    private NewsBlock buildBlock(News news, SaveNewsRequest.SaveNewsBlockRequest item, int order) {
+        NewsBlock.Type type = parseType(item.type());
 
-        String storedName = image.getStoredName();
-        newsImageRepository.delete(image);
-        fileStorageService.delete(storedName, StorageArea.PUBLIC);
+        NewsBlock block = NewsBlock.builder()
+                .news(news)
+                .type(type)
+                .caption(blankToNull(item.caption()))
+                .displayOrder(order)
+                .build();
+
+        switch (type) {
+            // Sarlavha va matn faqat ko'rinishi bilan farq qiladi, saqlanishi bir xil.
+            case HEADING, TEXT -> {
+                String text = blankToNull(item.text());
+                if (text == null) {
+                    throw new BadRequestException(MessageKeys.NEWS_TEXT_BLOCK_EMPTY);
+                }
+                block.setText(text);
+            }
+            case IMAGE -> {
+                String storedName = blankToNull(item.storedName());
+                if (storedName == null) {
+                    throw new BadRequestException(MessageKeys.NEWS_IMAGE_BLOCK_MISSING);
+                }
+                block.setStoredName(storedName);
+                block.setOriginalName(blankToNull(item.originalName()));
+            }
+            case GALLERY -> applyGalleryImages(block, item.images());
+        }
+
+        return block;
+    }
+
+    /**
+     * Albom rasmlarini qo'shadi.
+     *
+     * <p>Bo'sh albom rad etiladi: u sahifada hech narsa ko'rsatmaydi, ya'ni
+     * muallif rasm tanlashni unutgan bo'ladi - buni jimgina saqlab qo'yish
+     * xatoni yashirish bo'lardi.
+     */
+    private void applyGalleryImages(NewsBlock block, List<SaveNewsRequest.SaveNewsBlockImageRequest> images) {
+        if (images == null || images.isEmpty()) {
+            throw new BadRequestException(MessageKeys.NEWS_GALLERY_BLOCK_EMPTY);
+        }
+
+        int order = 0;
+        for (SaveNewsRequest.SaveNewsBlockImageRequest item : images) {
+            String storedName = blankToNull(item.storedName());
+            if (storedName == null) {
+                throw new BadRequestException(MessageKeys.NEWS_IMAGE_BLOCK_MISSING);
+            }
+            block.getImages().add(NewsBlockImage.builder()
+                    .block(block)
+                    .storedName(storedName)
+                    .originalName(blankToNull(item.originalName()))
+                    .caption(blankToNull(item.caption()))
+                    .displayOrder(order++)
+                    .build());
+        }
+    }
+
+    private NewsBlock.Type parseType(String value) {
+        try {
+            return NewsBlock.Type.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(MessageKeys.NEWS_BLOCK_TYPE_INVALID, value);
+        }
+    }
+
+    /** Qidiruv uchun matn va sarlavha bloklarini birlashtiradi. */
+    private String joinText(News news) {
+        return news.getBlocks().stream()
+                .filter(NewsBlock::isTextual)
+                .map(NewsBlock::getText)
+                .collect(Collectors.joining("\n\n"));
+    }
+
+    private Set<String> imageNames(News news) {
+        return news.getBlocks().stream()
+                .flatMap(block -> block.imageNames().stream())
+                .collect(Collectors.toSet());
     }
 
     // ---------------------------------------------------------------- yordamchilar
@@ -234,10 +304,15 @@ public class NewsService {
             return Map.of();
         }
         Map<Long, Long> counts = new HashMap<>();
-        for (Object[] row : newsImageRepository.countGroupedByNewsIds(newsIds)) {
-            counts.put((Long) row[0], (Long) row[1]);
-        }
+        accumulate(counts, newsBlockRepository.countSingleImagesGroupedByNewsIds(newsIds));
+        accumulate(counts, newsBlockRepository.countGalleryImagesGroupedByNewsIds(newsIds));
         return counts;
+    }
+
+    private void accumulate(Map<Long, Long> counts, List<Object[]> rows) {
+        for (Object[] row : rows) {
+            counts.merge((Long) row[0], (Long) row[1], Long::sum);
+        }
     }
 
     /** Chop etilgan sana faqat birinchi marta chop etilganda qo'yiladi. */

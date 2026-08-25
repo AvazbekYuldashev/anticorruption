@@ -8,7 +8,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * ESKI MODEL. Yangilik rasmlari endi {@link NewsBlock} da saqlanadi.
+ *
+ * <p>Bu interfeys faqat bir martalik ko'chirish uchun qoldirilgan
+ * ({@code NewsBlockMigration}). Ko'chirish barcha muhitlarda bajarilganidan
+ * keyin {@link NewsImage} bilan birga o'chirilishi mumkin.
+ */
 public interface NewsImageRepository extends JpaRepository<NewsImage, Long> {
+
+    List<NewsImage> findByNewsIdOrderByDisplayOrderAsc(Long newsId);
 
     long countByNewsId(Long newsId);
 

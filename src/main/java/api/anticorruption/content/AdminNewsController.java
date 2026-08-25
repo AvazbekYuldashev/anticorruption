@@ -2,7 +2,6 @@ package api.anticorruption.content;
 
 import api.anticorruption.common.dto.PageResponse;
 import api.anticorruption.content.dto.NewsDetailResponse;
-import api.anticorruption.content.dto.NewsImageResponse;
 import api.anticorruption.content.dto.NewsSummaryResponse;
 import api.anticorruption.content.dto.SaveNewsRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,8 +24,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 /** Yangiliklarni boshqarish. MODERATOR va ADMIN uchun. */
 @Tag(name = "Admin - yangiliklar", description = "Yangilik yaratish, tahrirlash va chop etish")
@@ -84,24 +81,6 @@ public class AdminNewsController {
             @RequestParam("file") MultipartFile file) {
 
         return ResponseEntity.ok(newsService.replaceCover(id, file));
-    }
-
-    @Operation(
-            summary = "Albomga rasm qo'shish",
-            description = "Bir vaqtda bir nechta rasm yuborish mumkin: files maydonini takrorlang")
-    @PostMapping(path = "/{id}/images", consumes = "multipart/form-data")
-    public ResponseEntity<List<NewsImageResponse>> uploadImages(
-            @PathVariable Long id,
-            @RequestParam("files") List<MultipartFile> files) {
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(newsService.addImages(id, files));
-    }
-
-    @Operation(summary = "Albomdan rasmni o'chirish")
-    @DeleteMapping("/{id}/images/{imageId}")
-    public ResponseEntity<Void> deleteImage(@PathVariable Long id, @PathVariable Long imageId) {
-        newsService.deleteImage(id, imageId);
-        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Yangilikni o'chirish")

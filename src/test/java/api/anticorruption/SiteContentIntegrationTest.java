@@ -29,7 +29,7 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
                                 {
                                   "title": "Kafedrada tushuntirish ishlari o'tkazildi",
                                   "summary": "Talabalar bilan uchrashuv bo'lib o'tdi",
-                                  "body": "Uchrashuvda korrupsiyaga qarshi kurash masalalari muhokama qilindi."
+                                  "blocks": [{"type": "TEXT", "text": "Uchrashuvda korrupsiyaga qarshi kurash masalalari muhokama qilindi."}]
                                 }
                                 """),
                         token))
@@ -66,7 +66,7 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
     void duplicateTitleGetsDistinctSlug() throws Exception {
         String token = adminToken();
         String body = """
-                {"title": "Takrorlanuvchi sarlavha sinovi", "body": "Birinchi yangilik matni bu yerda."}
+                {"title": "Takrorlanuvchi sarlavha sinovi", "blocks": [{"type": "TEXT", "text": "Birinchi yangilik matni bu yerda."}]}
                 """;
 
         mockMvc.perform(authorized(json(post("/api/v1/admin/news"), body), token))
@@ -85,7 +85,7 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
 
         String created = mockMvc.perform(authorized(
                         json(post("/api/v1/admin/news"), """
-                                {"title": "Muqovali yangilik sinovi", "body": "Bu yangilikka rasm biriktiriladi.", "published": true}
+                                {"title": "Muqovali yangilik sinovi", "blocks": [{"type": "TEXT", "text": "Bu yangilikka rasm biriktiriladi."}], "published": true}
                                 """),
                         token))
                 .andExpect(status().isCreated())
@@ -116,7 +116,7 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
 
         String created = mockMvc.perform(authorized(
                         json(post("/api/v1/admin/news"), """
-                                {"title": "Yaroqsiz muqova sinovi", "body": "Bu yangilikka pdf yuklashga urinamiz."}
+                                {"title": "Yaroqsiz muqova sinovi", "blocks": [{"type": "TEXT", "text": "Bu yangilikka pdf yuklashga urinamiz."}]}
                                 """),
                         token))
                 .andExpect(status().isCreated())
@@ -131,110 +131,259 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ------------------------------------------------------------- albom
+    // ------------------------------------------------------------- bloklar
 
     @Test
-    @DisplayName("Bir vaqtda bir nechta rasm yuklanadi va albom yangilikda ko'rinadi")
-    void multipleImagesCanBeUploadedAsAlbum() throws Exception {
+    @DisplayName("Matn va rasm bloklari kiritilgan tartibda saqlanadi")
+    void blocksKeepTheOrderTheyWereAddedIn() throws Exception {
         String token = adminToken();
-        int newsId = createNews(token, "Albomli yangilik sinovi uchun sarlavha", true);
-        String slug = "albomli-yangilik-sinovi-uchun-sarlavha";
+        String first = uploadMedia(token, "birinchi.png");
+        String second = uploadMedia(token, "ikkinchi.png");
 
-        // Uchta rasm bitta so'rovda ketadi - "files" maydoni takrorlanadi.
-        mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId)
-                                .file(image("birinchi.png"))
-                                .file(image("ikkinchi.png")),
+        String created = mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Blokli yangilik sinovi uchun sarlavha",
+                                  "published": true,
+                                  "blocks": [
+                                    {"type": "TEXT", "text": "Birinchi xatboshi."},
+                                    {"type": "IMAGE", "storedName": "%s", "originalName": "birinchi.png"},
+                                    {"type": "TEXT", "text": "Ikkinchi xatboshi."},
+                                    {"type": "IMAGE", "storedName": "%s", "originalName": "ikkinchi.png"}
+                                  ]
+                                }
+                                """.formatted(first, second)),
                         token))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].url").isNotEmpty())
-                .andExpect(jsonPath("$[0].displayOrder").value(0))
-                .andExpect(jsonPath("$[1].displayOrder").value(1));
+                .andExpect(jsonPath("$.blocks.length()").value(4))
+                .andExpect(jsonPath("$.blocks[0].type").value("TEXT"))
+                .andExpect(jsonPath("$.blocks[1].type").value("IMAGE"))
+                .andExpect(jsonPath("$.blocks[2].type").value("TEXT"))
+                .andExpect(jsonPath("$.blocks[3].type").value("IMAGE"))
+                // Matn bloklari qidiruv uchun birlashtiriladi
+                .andExpect(jsonPath("$.body").value("Birinchi xatboshi.\n\nIkkinchi xatboshi."))
+                .andReturn().getResponse().getContentAsString();
 
-        // Ochiq yangilikda albom ko'rinadi
+        String slug = JsonPath.read(created, "$.slug");
+
         mockMvc.perform(get("/api/v1/news/{slug}", slug))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.images.length()").value(2))
-                .andExpect(jsonPath("$.images[0].originalName").value("birinchi.png"));
+                .andExpect(jsonPath("$.blocks.length()").value(4))
+                .andExpect(jsonPath("$.blocks[1].url").isNotEmpty())
+                .andExpect(jsonPath("$.blocks[1].displayOrder").value(1));
 
-        // Ro'yxatda rasmlar soni ko'rsatiladi
-        mockMvc.perform(get("/api/v1/news").param("query", "Albomli"))
+        // Ro'yxatda faqat rasm bloklari sanaladi
+        mockMvc.perform(get("/api/v1/news").param("query", "Blokli"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].imageCount").value(2));
     }
 
     @Test
-    @DisplayName("Keyingi yuklashda tartib raqami davom etadi")
-    void imageOrderContinuesAcrossUploads() throws Exception {
+    @DisplayName("Saqlashda blok ro'yxati to'liq almashtiriladi")
+    void savingReplacesTheWholeBlockList() throws Exception {
         String token = adminToken();
-        int newsId = createNews(token, "Tartib raqami davom etishi sinovi", false);
+        int newsId = createNews(token, "Bloklar almashtirilishi sinovi", false);
 
         mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId).file(image("a.png")),
+                        json(put("/api/v1/admin/news/{id}", newsId), """
+                                {
+                                  "title": "Bloklar almashtirilishi sinovi",
+                                  "blocks": [
+                                    {"type": "TEXT", "text": "Yangi yagona xatboshi."}
+                                  ]
+                                }
+                                """),
                         token))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId).file(image("b.png")),
-                        token))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$[0].displayOrder").value(1));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocks.length()").value(1))
+                .andExpect(jsonPath("$.blocks[0].text").value("Yangi yagona xatboshi."));
     }
 
     @Test
-    @DisplayName("Albomdan rasm o'chiriladi")
-    void imageCanBeRemovedFromAlbum() throws Exception {
-        String token = adminToken();
-        int newsId = createNews(token, "Rasm ochirish sinovi uchun sarlavha", false);
+    @DisplayName("Bo'sh matn bloki qabul qilinmaydi")
+    void emptyTextBlockIsRejected() throws Exception {
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Bo'sh matn bloki sinovi uchun",
+                                  "blocks": [{"type": "TEXT", "text": "   "}]
+                                }
+                                """),
+                        adminToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.news.textBlockEmpty"));
+    }
 
-        String uploaded = mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId)
-                                .file(image("ochiriladi.png")),
-                        token))
+    @Test
+    @DisplayName("Faylsiz rasm bloki qabul qilinmaydi")
+    void imageBlockWithoutFileIsRejected() throws Exception {
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Faylsiz rasm bloki sinovi uchun",
+                                  "blocks": [{"type": "IMAGE"}]
+                                }
+                                """),
+                        adminToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.news.imageBlockMissing"));
+    }
+
+    @Test
+    @DisplayName("Noma'lum blok turi qabul qilinmaydi")
+    void unknownBlockTypeIsRejected() throws Exception {
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Notogri blok turi sinovi uchun",
+                                  "blocks": [{"type": "VIDEO", "text": "x"}]
+                                }
+                                """),
+                        adminToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.news.blockTypeInvalid"));
+    }
+
+    @Test
+    @DisplayName("Sarlavha bloki alohida tur sifatida saqlanadi va qidiruvga tushadi")
+    void headingBlockIsStoredAsItsOwnType() throws Exception {
+        String created = mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Sarlavhali yangilik sinovi uchun",
+                                  "published": true,
+                                  "blocks": [
+                                    {"type": "HEADING", "text": "Tadbir yakunlari"},
+                                    {"type": "TEXT", "text": "Yig'ilishda qaror qabul qilindi."}
+                                  ]
+                                }
+                                """),
+                        adminToken()))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.blocks[0].type").value("HEADING"))
+                .andExpect(jsonPath("$.blocks[0].text").value("Tadbir yakunlari"))
+                .andExpect(jsonPath("$.blocks[1].type").value("TEXT"))
+                // Sarlavha ham qidiruv matniga kiradi
+                .andExpect(jsonPath("$.body").value("Tadbir yakunlari\n\nYig'ilishda qaror qabul qilindi."))
                 .andReturn().getResponse().getContentAsString();
 
-        int imageId = JsonPath.read(uploaded, "$[0].id");
+        String slug = JsonPath.read(created, "$.slug");
 
-        mockMvc.perform(authorized(
-                        delete("/api/v1/admin/news/{id}/images/{imageId}", newsId, imageId), token))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(authorized(get("/api/v1/admin/news/{id}", newsId), token))
+        mockMvc.perform(get("/api/v1/news").param("query", "Tadbir yakunlari"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.images.length()").value(0));
+                .andExpect(jsonPath("$.content[0].slug").value(slug));
     }
 
     @Test
-    @DisplayName("Chegaradan ortiq rasm qabul qilinmaydi")
-    void albumLimitIsEnforced() throws Exception {
+    @DisplayName("Albom bloki rasmlarni o'z tartibida saqlaydi va ular ham sanaladi")
+    void galleryBlockKeepsItsOwnImageOrder() throws Exception {
         String token = adminToken();
-        int newsId = createNews(token, "Chegara sinovi uchun yangilik sarlavhasi", false);
+        String single = uploadMedia(token, "yakka.png");
+        String first = uploadMedia(token, "albom-1.png");
+        String second = uploadMedia(token, "albom-2.png");
 
-        // Sinov sozlamasida chegara 3 ta.
+        String created = mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Albomli yangilik sinovi uchun",
+                                  "published": true,
+                                  "blocks": [
+                                    {"type": "IMAGE", "storedName": "%s", "originalName": "yakka.png"},
+                                    {"type": "GALLERY", "caption": "Tadbirdan lavhalar", "images": [
+                                      {"storedName": "%s", "originalName": "albom-1.png"},
+                                      {"storedName": "%s", "originalName": "albom-2.png", "caption": "Ikkinchi"}
+                                    ]}
+                                  ]
+                                }
+                                """.formatted(single, first, second)),
+                        token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.blocks[1].type").value("GALLERY"))
+                .andExpect(jsonPath("$.blocks[1].caption").value("Tadbirdan lavhalar"))
+                .andExpect(jsonPath("$.blocks[1].images.length()").value(2))
+                .andExpect(jsonPath("$.blocks[1].images[0].displayOrder").value(0))
+                .andExpect(jsonPath("$.blocks[1].images[1].caption").value("Ikkinchi"))
+                .andExpect(jsonPath("$.blocks[1].images[1].url").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        String slug = JsonPath.read(created, "$.slug");
+
+        mockMvc.perform(get("/api/v1/news/{slug}", slug))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocks[1].images.length()").value(2));
+
+        // Ro'yxatdagi hisob yakka rasmni ham, albom ichidagilarni ham qamrab oladi
+        mockMvc.perform(get("/api/v1/news").param("query", "Albomli"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].imageCount").value(3));
+    }
+
+    @Test
+    @DisplayName("Rasmsiz albom bloki qabul qilinmaydi")
+    void emptyGalleryBlockIsRejected() throws Exception {
         mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId)
-                                .file(image("1.png"))
-                                .file(image("2.png"))
-                                .file(image("3.png"))
-                                .file(image("4.png")),
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Bo'sh albom bloki sinovi uchun",
+                                  "blocks": [{"type": "GALLERY", "images": []}]
+                                }
+                                """),
+                        adminToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.news.galleryBlockEmpty"));
+    }
+
+    @Test
+    @DisplayName("Bitta yangilikdagi rasmlar soni chegaradan oshmaydi")
+    void tooManyImagesAreRejected() throws Exception {
+        String token = adminToken();
+        // Sinov sozlamasida chegara 3 ta (application-test.properties)
+        String a = uploadMedia(token, "a.png");
+        String b = uploadMedia(token, "b.png");
+        String c = uploadMedia(token, "c.png");
+        String d = uploadMedia(token, "d.png");
+
+        mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/news"), """
+                                {
+                                  "title": "Rasm chegarasi sinovi uchun sarlavha",
+                                  "blocks": [
+                                    {"type": "IMAGE", "storedName": "%s"},
+                                    {"type": "GALLERY", "images": [
+                                      {"storedName": "%s"}, {"storedName": "%s"}, {"storedName": "%s"}
+                                    ]}
+                                  ]
+                                }
+                                """.formatted(a, b, c, d)),
                         token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("error.news.tooManyImages"));
     }
 
     @Test
-    @DisplayName("Albomga rasm bo'lmagan fayl qabul qilinmaydi")
-    void nonImageIsRejectedFromAlbum() throws Exception {
+    @DisplayName("Muharrir uchun rasm alohida yuklanadi va nomi qaytadi")
+    void mediaUploadReturnsStoredName() throws Exception {
         String token = adminToken();
-        int newsId = createNews(token, "Yaroqsiz albom fayli sinovi sarlavhasi", false);
-
-        MockMultipartFile pdf = new MockMultipartFile(
-                "files", "hujjat.pdf", "application/pdf", new byte[]{'%', 'P', 'D', 'F'});
 
         mockMvc.perform(authorized(
-                        multipart("/api/v1/admin/news/{id}/images", newsId).file(pdf), token))
+                        multipart("/api/v1/admin/media").file(
+                                new MockMultipartFile("file", "muharrir.png", "image/png",
+                                        new byte[]{(byte) 0x89, 'P', 'N', 'G'})),
+                        token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.storedName").isNotEmpty())
+                .andExpect(jsonPath("$.originalName").value("muharrir.png"))
+                .andExpect(jsonPath("$.url").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("Muharrirga rasm bo'lmagan fayl yuklanmaydi")
+    void mediaUploadRejectsNonImage() throws Exception {
+        mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/media").file(
+                                new MockMultipartFile("file", "hujjat.pdf", "application/pdf",
+                                        new byte[]{'%', 'P', 'D', 'F'})),
+                        adminToken()))
                 .andExpect(status().isBadRequest());
     }
 
@@ -247,7 +396,7 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
                         json(post("/api/v1/admin/news"), """
                                 {
                                   "title": "Stipendiya masalasi bo'yicha tushuntirish",
-                                  "body": "Stipendiya taqsimoti qoidalari haqida batafsil ma'lumot.",
+                                  "blocks": [{"type": "TEXT", "text": "Stipendiya taqsimoti qoidalari haqida batafsil ma'lumot."}],
                                   "published": true
                                 }
                                 """),
@@ -390,22 +539,30 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Kontentni tahrirlash uchun tizimga kirish shart")
     void contentManagementRequiresAuthentication() throws Exception {
         mockMvc.perform(json(post("/api/v1/admin/news"), """
-                        {"title": "Ruxsatsiz yangilik", "body": "Bu yaratilmasligi kerak."}
+                        {"title": "Ruxsatsiz yangilik", "blocks": [{"type": "TEXT", "text": "Bu yaratilmasligi kerak."}]}
                         """))
                 .andExpect(status().isUnauthorized());
     }
 
     // ------------------------------------------------------------- yordamchilar
 
-    /** Albom uchun eng kichik yaroqli PNG - mazmuni muhim emas, MIME turi muhim. */
-    private MockMultipartFile image(String name) {
-        return new MockMultipartFile("files", name, "image/png", new byte[]{(byte) 0x89, 'P', 'N', 'G'});
+    /** Muharrir uchun rasm yuklaydi va uning saqlangan nomini qaytaradi. */
+    private String uploadMedia(String token, String name) throws Exception {
+        String response = mockMvc.perform(authorized(
+                        multipart("/api/v1/admin/media").file(
+                                new MockMultipartFile("file", name, "image/png",
+                                        new byte[]{(byte) 0x89, 'P', 'N', 'G'})),
+                        token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        return JsonPath.read(response, "$.storedName");
     }
 
     private int createNews(String token, String title, boolean published) throws Exception {
         String response = mockMvc.perform(authorized(
                         json(post("/api/v1/admin/news"), """
-                                {"title": "%s", "body": "Sinov uchun yangilik matni.", "published": %s}
+                                {"title": "%s", "blocks": [{"type": "TEXT", "text": "Sinov uchun yangilik matni."}], "published": %s}
                                 """.formatted(title, published)),
                         token))
                 .andExpect(status().isCreated())

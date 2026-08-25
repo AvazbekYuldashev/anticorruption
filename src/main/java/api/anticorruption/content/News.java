@@ -58,8 +58,17 @@ public class News {
     @Column(length = 500)
     private String summary;
 
+    /**
+     * Matn bloklarining birlashtirilgan nusxasi.
+     *
+     * <p>Mazmun bloklarda saqlanadi, bu maydon esa qidiruv uchun: SQL da
+     * bloklar bo'ylab matn izlash har safar birlashtirishni talab qilardi.
+     * Har saqlashda {@code NewsService} tomonidan qayta hosil qilinadi -
+     * qo'lda tahrirlanmaydi.
+     */
     @Column(nullable = false, columnDefinition = "text")
-    private String body;
+    @Builder.Default
+    private String body = "";
 
     /** Ochiq zonadagi rasm nomi; {@code /api/v1/media/{nom}} orqali olinadi. */
     @Column(name = "cover_image", length = 120)
@@ -78,14 +87,14 @@ public class News {
     private long viewCount = 0;
 
     /**
-     * Albom: yangilik ichida galereya sifatida ko'rsatiladigan rasmlar.
-     * Yangilik o'chirilsa yozuvlari ham o'chadi; fayllarni diskdan
+     * Yangilik mazmuni: matn va rasm bloklari kiritilgan tartibda.
+     * Yangilik o'chirilsa yozuvlari ham o'chadi; rasm fayllarini diskdan
      * {@code NewsService} tozalaydi.
      */
     @OneToMany(mappedBy = "news", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC, id ASC")
     @Builder.Default
-    private List<NewsImage> images = new ArrayList<>();
+    private List<NewsBlock> blocks = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

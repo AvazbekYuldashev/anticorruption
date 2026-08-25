@@ -22,7 +22,11 @@ import { contentApi, type SaveNewsPayload } from '../api/content';
 import { formatDate } from '../lib/format';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
 
-const EMPTY: SaveNewsPayload = { title: '', summary: '', body: '', published: false };
+/**
+ * Yaratishda faqat sarlavha va qisqa mazmun so'raladi. Mazmun bloklari
+ * tafsilot sahifasida qo'shiladi - u yerda "+" bilan uzluksiz ishlash qulay.
+ */
+const EMPTY: SaveNewsPayload = { title: '', summary: '', published: false, blocks: [] };
 
 export function NewsAdminPage() {
   const { t } = useTranslation();
@@ -233,15 +237,9 @@ export function NewsAdminPage() {
             rows={2}
             fullWidth
           />
-          <TextField
-            label={t('admin.fieldBody')}
-            value={dialog.form.body}
-            onChange={(event) => setDialog({ form: { ...dialog.form, body: event.target.value } })}
-            required
-            multiline
-            rows={12}
-            fullWidth
-          />
+          <Typography variant="caption" color="text.secondary">
+            {t('admin.contentHint')}
+          </Typography>
         </FormDialog>
       )}
 

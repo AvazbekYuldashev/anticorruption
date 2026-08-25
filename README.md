@@ -23,7 +23,7 @@ Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
 |---|---|
 | **Murojaat qoldirish** | Noyob kuzatuv kodi, dalil fayllari, fakultet/kafedra/fan konteksti, 17 ta aniq kategoriya |
 | **Murojaatlar ro'yxati** | Ochiq reyestr: kategoriya, fakultet, maqom va sanalar bilan; qidiruv va filtrlar |
-| **Yangiliklar** | Qoralama/chop etish holati, muqova rasmi, qidiruv, ko'rishlar hisobi |
+| **Yangiliklar** | Blokli muharrir (sarlavha, formatlangan matn, yakka rasm, albom), qoralama/chop etish, muqova, qidiruv, ko'rishlar hisobi |
 | **Xodimlar** | Lavozim, ilmiy daraja, qabul vaqti, surat, tartib raqami |
 | **So'rovnomalar** | Ovoz berish, takroriy ovozdan himoya, jonli natijalar va foizlar |
 | **Bo'lim haqida** | Admin panelidan tahrirlanadigan istalgan sondagi matnli sahifa |
@@ -208,6 +208,33 @@ xeshlanadi: bazadan hech kimning IP sini tiklab bo'lmaydi, lekin takroriy ovoz
 aniqlanadi.
 
 **Admin o'zini bloklay olmaydi** va o'z rolini pasaytira olmaydi.
+
+**Yangilik mazmuni bloklardan iborat.** Bitta katta matn o'rniga tartiblangan
+bloklar (`news_blocks`): `HEADING`, `TEXT`, `IMAGE` va `GALLERY` — shu tufayli
+rasm matnning istalgan joyiga qo'yiladi. Qidiruv uchun matn bloklari
+`news.body` ga birlashtirib qo'yiladi: SQL da bloklar bo'ylab izlash har safar
+birlashtirishni talab qilardi. Bu ustun har saqlashda qayta hosil qilinadi va
+qo'lda tahrirlanmaydi.
+
+**Yakka rasm blokning xossasi, albom esa to'plam.** `IMAGE` blokda fayl nomi
+blokning o'zida turadi, `GALLERY` da esa rasmlar alohida jadvalda
+(`news_block_images`) va o'z tartibiga ega. Ikkalasini bitta to'plamga
+birlashtirish ham mumkin edi, lekin unda "yakka" va "albom" farqi faqat
+rasmlar soniga qarab taxmin qilinardi — muallif tanlovi esa saqlanishi kerak:
+u sahifadagi ko'rinishni belgilaydi.
+
+**Matn formati HTML emas, belgilar bilan yoziladi.** `**qalin**`, `*kursiv*`,
+`__tagi chizilgan__`, `~~chizilgan~~`, `[matn](havola)`. HTML saqlansa uni
+sahifaga qo'yishdan oldin tozalash kerak bo'lardi va bitta e'tibordan chetda
+qolgan teg saytga begona skript kiritish yo'lini ochib berardi. Belgilar esa
+hech qachon HTML ga aylanmaydi: `frontend/src/lib/richText.tsx` faqat sanab
+o'tilgan elementlarni yasaydi, havolalarda esa `http`, `https` va `mailto` dan
+boshqa sxemalar oddiy matn bo'lib qoladi.
+
+**Enum cheklovi ishga tushishda tekislanadi.** `ddl-auto=update` mavjud
+`CHECK` cheklovini yangilamaydi, shuning uchun enumga yangi blok turi
+qo'shilganda eski bazada yozuv rad etilardi. `NewsBlockTypeConstraintMigration`
+cheklovni enumning o'zidan qayta yasaydi — ro'yxat kod bilan ajralib qolmaydi.
 
 ## Frontend
 

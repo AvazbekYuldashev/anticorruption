@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { contentApi } from '../api/content';
-import { Gallery } from '../components/Gallery';
+import { NewsContent } from '../components/NewsContent';
 import { Card, EmptyState, ErrorBox, Input, PageHeader, Pagination, Spinner } from '../components/ui';
 import { errorMessage } from '../lib/errors';
 import { formatDate } from '../lib/format';
@@ -133,14 +133,8 @@ export function NewsDetailPage() {
       )}
 
       <Card className="mt-6">
-        <div className="prose-content text-slate-700">{news.body}</div>
+        <NewsContent blocks={news.blocks} />
       </Card>
-
-      {news.images.length > 0 && (
-        <div className="mt-8">
-          <Gallery images={news.images} />
-        </div>
-      )}
     </article>
   );
 }

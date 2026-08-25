@@ -297,12 +297,34 @@ export interface FacultyRatingResponse {
 
 // ---------------------------------------------------------------- kontent
 
-/** Yangilik albomidagi bitta rasm. */
-export interface NewsImageResponse {
+export type NewsBlockType = 'HEADING' | 'TEXT' | 'IMAGE' | 'GALLERY';
+
+/** Albom blokidagi bitta rasm. */
+export interface NewsBlockImageResponse {
   id: number;
   url: string;
-  originalName: string;
+  originalName: string | null;
   caption: string | null;
+  displayOrder: number;
+}
+
+/**
+ * Yangilik mazmunining bir bo'lagi.
+ *
+ * <p>Matn bloklarida (`HEADING`, `TEXT`) `text`, yakka rasmda `url`,
+ * albomda `images` to'ldiriladi. Matn ichida oddiy belgilar bilan
+ * formatlash bo'lishi mumkin - `renderRichText` uni chizadi.
+ *
+ * <p>Bloklar `displayOrder` bo'yicha tartiblangan holda keladi.
+ */
+export interface NewsBlockResponse {
+  id: number;
+  type: NewsBlockType;
+  text: string | null;
+  url: string | null;
+  originalName: string | null;
+  caption: string | null;
+  images: NewsBlockImageResponse[];
   displayOrder: number;
 }
 
@@ -320,8 +342,9 @@ export interface NewsSummaryResponse {
 }
 
 export interface NewsDetailResponse extends NewsSummaryResponse {
+  /** Matn bloklarining birlashtirilgan nusxasi - qidiruv natijalari uchun. */
   body: string;
-  images: NewsImageResponse[];
+  blocks: NewsBlockResponse[];
   createdAt: string;
   updatedAt: string;
 }

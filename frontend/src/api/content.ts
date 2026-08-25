@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
+  NewsBlockType,
   NewsDetailResponse,
-  NewsImageResponse,
   NewsSummaryResponse,
   PageResponse,
   StaffMemberResponse,
@@ -9,11 +9,36 @@ import type {
   UsefulLinkResponse,
 } from './types';
 
+/** Albomga qo'shiladigan rasm - avval yuklangan faylga havola. */
+export interface SaveNewsBlockImage {
+  storedName: string;
+  originalName?: string;
+  caption?: string;
+}
+
+/** Saqlashda yuboriladigan blok. Rasm bloklari avval yuklangan fayllarga havola qiladi. */
+export interface SaveNewsBlock {
+  type: NewsBlockType;
+  text?: string;
+  storedName?: string;
+  originalName?: string;
+  caption?: string;
+  images?: SaveNewsBlockImage[];
+}
+
 export interface SaveNewsPayload {
   title: string;
   summary?: string;
-  body: string;
   published?: boolean;
+  /** To'liq ro'yxat: unda yo'q blok o'chiriladi. */
+  blocks: SaveNewsBlock[];
+}
+
+/** Muharrir uchun yuklangan rasm. */
+export interface UploadedMedia {
+  storedName: string;
+  originalName: string;
+  url: string;
 }
 
 export interface SaveStaffPayload {
@@ -67,12 +92,11 @@ export const contentApi = {
   uploadNewsCover: (id: number, file: File) =>
     api.upload<NewsDetailResponse>(`/admin/news/${id}/cover`, file),
 
-  /** Albomga bir vaqtda bir nechta rasm qo'shadi. */
-  uploadNewsImages: (id: number, files: File[]) =>
-    api.uploadMany<NewsImageResponse[]>(`/admin/news/${id}/images`, files),
-
-  deleteNewsImage: (id: number, imageId: number) =>
-    api.delete<void>(`/admin/news/${id}/images/${imageId}`),
+  /**
+     * Muharrir uchun rasm yuklaydi va uning nomini qaytaradi.
+     * Rasm hali hech qanday yangilikka bog'lanmagan - blok saqlanganda bog'lanadi.
+     */
+  uploadMedia: (file: File) => api.upload<UploadedMedia>('/admin/media', file),
 
   deleteNews: (id: number) => api.delete<void>(`/admin/news/${id}`),
 

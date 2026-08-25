@@ -5,7 +5,13 @@ import api.anticorruption.content.News;
 import java.time.Instant;
 import java.util.List;
 
-/** Yangilikning to'liq matni va albomi bilan ko'rinishi. */
+/**
+ * Yangilikning to'liq ko'rinishi.
+ *
+ * @param blocks mazmun: matn va rasm bloklari kiritilgan tartibda
+ * @param body   matn bloklarining birlashtirilgan nusxasi - qidiruv natijasida
+ *               qisqa parcha ko'rsatish kabi holatlar uchun qulay
+ */
 public record NewsDetailResponse(
         Long id,
         String slug,
@@ -16,7 +22,7 @@ public record NewsDetailResponse(
         boolean published,
         Instant publishedAt,
         long viewCount,
-        List<NewsImageResponse> images,
+        List<NewsBlockResponse> blocks,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -31,7 +37,7 @@ public record NewsDetailResponse(
      * o'zgartirilmaydi - aks holda tranzaksiya oxiridagi dirty-check eski
      * qiymatni qaytarib yozib, bir vaqtda kelgan o'qishlar yo'qolardi.
      *
-     * <p>Faqat tranzaksiya ichida chaqirilishi kerak - albom lazy yuklanadi.
+     * <p>Faqat tranzaksiya ichida chaqirilishi kerak - bloklar lazy yuklanadi.
      */
     public static NewsDetailResponse from(News news, long viewCount) {
         return new NewsDetailResponse(
@@ -44,7 +50,7 @@ public record NewsDetailResponse(
                 news.isPublished(),
                 news.getPublishedAt(),
                 viewCount,
-                news.getImages().stream().map(NewsImageResponse::from).toList(),
+                news.getBlocks().stream().map(NewsBlockResponse::from).toList(),
                 news.getCreatedAt(),
                 news.getUpdatedAt());
     }

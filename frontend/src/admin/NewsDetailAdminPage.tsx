@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,22 +9,26 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { contentApi, type SaveNewsPayload } from '../api/content';
-import { Gallery } from '../components/Gallery';
+import { contentApi } from '../api/content';
 import { formatDate, formatDateTime } from '../lib/format';
-import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { AdminPage, ConfirmDialog, MutationError, QueryState } from './common';
+import {
+  NewsBlockEditor,
+  toEditorBlocks,
+  toSavePayload,
+  type EditorBlock,
+} from './NewsBlockEditor';
 
 /**
- * Yangilikning admin ko'rinishi: saytdagidek chiqadi, lekin qoralama
- * holatidagilar ham ko'rinadi va shu yerning o'zida boshqariladi.
+ * Yangilikning admin ko'rinishi va muharriri.
  *
- * <p>Albom boshqaruvi ham shu yerda: ro'yxatdagi qatorga beshta tugma
- * sig'masdi, bu yerda esa rasm to'ri to'liq ko'rinadi.
+ * <p>Sarlavha, qisqa mazmun va bloklar shu sahifaning o'zida tahrirlanadi:
+ * blok qo'shish uzluksiz jarayon, uni oyna ichiga siqib bo'lmaydi.
+ * O'zgarishlar faqat "Saqlash" bosilganda serverga yoziladi.
  */
 export function NewsDetailAdminPage() {
   const { t } = useTranslation();
@@ -33,7 +37,10 @@ export function NewsDetailAdminPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [editing, setEditing] = useState<SaveNewsPayload | null>(null);
+  const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [blocks, setBlocks] = useState<EditorBlock[]>([]);
+  const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const query = useQuery({
@@ -42,15 +49,30 @@ export function NewsDetailAdminPage() {
     retry: false,
   });
 
+  // Server ma'lumoti kelganda muharrir maydonlarini to'ldiramiz.
+  // Saqlanmagan o'zgarish bo'lsa tegmaymiz - foydalanuvchi yozganini yo'qotmasin.
+  const loaded = query.data;
+  useEffect(() => {
+    if (!loaded || dirty) return;
+    setTitle(loaded.title);
+    setSummary(loaded.summary ?? '');
+    setBlocks(toEditorBlocks(loaded.blocks));
+  }, [loaded, dirty]);
+
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ['admin', 'news'] });
     void queryClient.invalidateQueries({ queryKey: ['news'] });
   }
 
   const save = useMutation({
-    mutationFn: () => contentApi.updateNews(newsId, editing!),
+    mutationFn: () =>
+      contentApi.updateNews(newsId, {
+        title,
+        summary,
+        blocks: toSavePayload(blocks),
+      }),
     onSuccess: () => {
-      setEditing(null);
+      setDirty(false);
       refresh();
     },
   });
@@ -62,16 +84,6 @@ export function NewsDetailAdminPage() {
 
   const uploadCover = useMutation({
     mutationFn: (file: File) => contentApi.uploadNewsCover(newsId, file),
-    onSuccess: refresh,
-  });
-
-  const uploadImages = useMutation({
-    mutationFn: (files: File[]) => contentApi.uploadNewsImages(newsId, files),
-    onSuccess: refresh,
-  });
-
-  const removeImage = useMutation({
-    mutationFn: (imageId: number) => contentApi.deleteNewsImage(newsId, imageId),
     onSuccess: refresh,
   });
 
@@ -97,16 +109,15 @@ export function NewsDetailAdminPage() {
       <QueryState isPending={query.isPending} error={query.error}>
         {news && (
           <Stack spacing={3}>
-            {/* --- Boshqaruv --- */}
+            {/* --- Holat va amallar --- */}
             <Card variant="outlined">
               <CardContent>
                 <Stack
                   direction={{ xs: 'column', md: 'row' }}
                   spacing={2}
-                  sx={{ justifyContent: 'space-between', alignItems: { md: 'flex-start' } }}
+                  sx={{ justifyContent: 'space-between' }}
                 >
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="h6">{news.title}</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
                       /{news.slug}
                     </Typography>
@@ -126,20 +137,6 @@ export function NewsDetailAdminPage() {
                   </Box>
 
                   <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={() =>
-                        setEditing({
-                          title: news.title,
-                          summary: news.summary ?? '',
-                          body: news.body,
-                          published: news.published,
-                        })
-                      }
-                    >
-                      {t('common.edit')}
-                    </Button>
                     <Button
                       size="small"
                       disabled={publish.isPending}
@@ -215,126 +212,71 @@ export function NewsDetailAdminPage() {
               </CardContent>
             </Card>
 
-            {/* --- Matn --- */}
+            {/* --- Muharrir --- */}
             <Card variant="outlined">
               <CardContent>
-                {news.summary && (
-                  <>
-                    <Typography variant="subtitle2" gutterBottom>
-                      {t('admin.fieldSummary')}
+                <Stack spacing={2.5}>
+                  <TextField
+                    label={t('admin.fieldNewsTitle')}
+                    value={title}
+                    onChange={(event) => {
+                      setTitle(event.target.value);
+                      setDirty(true);
+                    }}
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label={t('admin.fieldSummary')}
+                    value={summary}
+                    onChange={(event) => {
+                      setSummary(event.target.value);
+                      setDirty(true);
+                    }}
+                    multiline
+                    rows={2}
+                    fullWidth
+                  />
+
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      {t('admin.content')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {news.summary}
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                  </>
-                )}
-
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('admin.fieldBody')}
-                </Typography>
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                  {news.body}
-                </Typography>
-
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-                  {t('track.updated')}: {formatDateTime(news.updatedAt)}
-                </Typography>
-              </CardContent>
-            </Card>
-
-            {/* --- Albom --- */}
-            <Card variant="outlined">
-              <CardContent>
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
-                >
-                  <Typography variant="subtitle2">{t('admin.album')}</Typography>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    component="label"
-                    disabled={uploadImages.isPending}
-                  >
-                    {uploadImages.isPending ? t('admin.uploadingImages') : t('admin.addImages')}
-                    {/* multiple - bir vaqtda bir nechta fayl tanlash uchun */}
-                    <input
-                      type="file"
-                      hidden
-                      multiple
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) => {
-                        const files = Array.from(event.target.files ?? []);
-                        if (files.length > 0) uploadImages.mutate(files);
-                        event.target.value = '';
+                    <NewsBlockEditor
+                      value={blocks}
+                      onChange={(next) => {
+                        setBlocks(next);
+                        setDirty(true);
                       }}
                     />
-                  </Button>
+                  </Box>
+
+                  <MutationError error={save.error} />
+
+                  <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                    <Button
+                      variant="contained"
+                      disabled={save.isPending || !dirty}
+                      onClick={() => save.mutate()}
+                    >
+                      {t('common.save')}
+                    </Button>
+                    {dirty && (
+                      <Typography variant="caption" color="warning.main">
+                        {t('admin.unsavedHint')}
+                      </Typography>
+                    )}
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      {t('track.updated')}: {formatDateTime(news.updatedAt)}
+                    </Typography>
+                  </Stack>
                 </Stack>
-
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  {t('admin.imagesHint')}
-                </Typography>
-
-                <MutationError error={uploadImages.error ?? removeImage.error} />
-
-                {news.images.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                    {t('admin.noImages')}
-                  </Typography>
-                ) : (
-                  // Saytdagi bilan bir xil galereya: rasm bosilsa kattalashadi,
-                  // ustidagi tugma esa uni o'chiradi.
-                  <Gallery
-                    images={news.images}
-                    onDelete={(image) => removeImage.mutate(image.id)}
-                    deleteDisabled={removeImage.isPending}
-                  />
-                )}
               </CardContent>
             </Card>
           </Stack>
         )}
       </QueryState>
-
-      {editing && (
-        <FormDialog
-          open
-          maxWidth="md"
-          title={t('admin.editNews')}
-          busy={save.isPending}
-          error={save.error}
-          onClose={() => setEditing(null)}
-          onSubmit={() => save.mutate()}
-        >
-          <TextField
-            label={t('admin.fieldNewsTitle')}
-            value={editing.title}
-            onChange={(event) => setEditing({ ...editing, title: event.target.value })}
-            required
-            fullWidth
-          />
-          <TextField
-            label={t('admin.fieldSummary')}
-            value={editing.summary}
-            onChange={(event) => setEditing({ ...editing, summary: event.target.value })}
-            multiline
-            rows={2}
-            fullWidth
-          />
-          <TextField
-            label={t('admin.fieldBody')}
-            value={editing.body}
-            onChange={(event) => setEditing({ ...editing, body: event.target.value })}
-            required
-            multiline
-            rows={12}
-            fullWidth
-          />
-        </FormDialog>
-      )}
 
       <ConfirmDialog
         open={confirmDelete}

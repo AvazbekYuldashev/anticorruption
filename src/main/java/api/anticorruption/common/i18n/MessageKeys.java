@@ -93,6 +93,10 @@ public final class MessageKeys {
     public static final String NEWS_ALREADY_PUBLISHED = "error.news.alreadyPublished";
     public static final String NEWS_ALREADY_DRAFT = "error.news.alreadyDraft";
     public static final String NEWS_TOO_MANY_IMAGES = "error.news.tooManyImages";
+    public static final String NEWS_BLOCK_TYPE_INVALID = "error.news.blockTypeInvalid";
+    public static final String NEWS_TEXT_BLOCK_EMPTY = "error.news.textBlockEmpty";
+    public static final String NEWS_IMAGE_BLOCK_MISSING = "error.news.imageBlockMissing";
+    public static final String NEWS_GALLERY_BLOCK_EMPTY = "error.news.galleryBlockEmpty";
     public static final String PAGE_SLUG_TAKEN = "error.page.slugTaken";
     public static final String PAGE_NOT_FOUND_BY_SLUG = "error.page.notFoundBySlug";
 
