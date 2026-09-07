@@ -91,7 +91,7 @@ export function NewsListPage() {
                       <span>{t('news.views', { count: item.viewCount })}</span>
                     </div>
 
-                    <div className="mt-5 pt-1">
+                    <div className="mt-auto pt-5">
                       <Link
                         to={`/news/${item.slug}`}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
@@ -138,6 +138,26 @@ export function NewsDetailPage() {
         <span>{formatDate(news.publishedAt)}</span>
         <span>{t('news.views', { count: news.viewCount })}</span>
       </div>
+
+      {/*
+        Bu maqolaning boshqa tildagi nusxalari. Yuqoridagi umumiy til
+        tugmasi butun saytni almashtiradi va o'quvchini ro'yxatga qaytarardi;
+        bu havolalar esa aynan shu maqolaning tarjimasiga olib boradi.
+      */}
+      {news.translations.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-400">{t('news.otherLanguages')}</span>
+          {news.translations.map((translation) => (
+            <Link
+              key={translation.id}
+              to={`/news/${translation.slug}`}
+              className="rounded-full border border-slate-200 px-3 py-1 font-medium text-brand-600 hover:bg-slate-50"
+            >
+              {translation.languageName}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {news.coverImageUrl && (
         <img

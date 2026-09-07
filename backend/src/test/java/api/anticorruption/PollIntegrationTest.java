@@ -29,7 +29,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         long optionId = id(poll, "$.questions[0].options[0].id");
         long otherId = id(poll, "$.questions[0].options[1].id");
 
-        String voterToken = registerAndLogin("Ovoz Beruvchi", "ovoz1@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Ovoz Beruvchi", "ovoz1@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -55,7 +55,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Har bir savolning javoblari alohida sanaladi")
     void eachQuestionIsCountedSeparately() throws Exception {
         String poll = createTwoQuestionPoll(adminToken(), true);
-        String voterToken = registerAndLogin("Ikki Savol", "ovoz5@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Ikki Savol", "ovoz5@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -87,7 +87,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Majburiy bo'lmagan savolni tashlab ketish mumkin")
     void optionalQuestionCanBeSkipped() throws Exception {
         String poll = createTwoQuestionPoll(adminToken(), false);
-        String voterToken = registerAndLogin("Yarim Javob", "ovoz6@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Yarim Javob", "ovoz6@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -106,7 +106,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Majburiy savol javobsiz qolsa ovoz qabul qilinmaydi")
     void requiredQuestionMustBeAnswered() throws Exception {
         String poll = createTwoQuestionPoll(adminToken(), true);
-        String voterToken = registerAndLogin("Chala Javob", "ovoz7@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Chala Javob", "ovoz7@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -123,7 +123,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Bir tanlovli savolda bir nechta variant tanlab bo'lmaydi")
     void singleChoiceQuestionRejectsMultipleOptions() throws Exception {
         String poll = createPoll(adminToken(), "Bir tanlovli savol sinovi uchun matn");
-        String voterToken = registerAndLogin("Ikki Tanlovchi", "ovoz2@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Ikki Tanlovchi", "ovoz2@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -144,7 +144,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         String first = createPoll(token, "Birinchi so'rovnoma savoli sinov uchun");
         String second = createPoll(token, "Ikkinchi so'rovnoma savoli sinov uchun");
 
-        String voterToken = registerAndLogin("Chalkash Ovoz", "ovoz3@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Chalkash Ovoz", "ovoz3@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(first, "$.id")), """
@@ -170,7 +170,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.active").value(false))
                 .andExpect(jsonPath("$.status").value("DRAFT"));
 
-        String voterToken = registerAndLogin("Kech Qolgan", "ovoz4@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Kech Qolgan", "ovoz4@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", id(poll, "$.id")), """
@@ -220,7 +220,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == %d)].status".formatted(pollId)).value("CLOSED"));
 
-        String voterToken = registerAndLogin("Kechikkan", "ovoz8@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Kechikkan", "ovoz8@test.uz", "Ovoz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
@@ -242,7 +242,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         String poll = createPoll(token, "To'xtatiladigan so'rovnoma sinovi");
         long pollId = id(poll, "$.id");
 
-        String voterToken = registerAndLogin("To'xtashdan Oldin", "ovoz13@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("To'xtashdan Oldin", "ovoz13@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -273,7 +273,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.questions[0].options[0].voteCount").value(1));
 
         // Ovoz ham qabul qilinmaydi
-        String lateVoter = registerAndLogin("Kech Kelgan", "ovoz14@test.uz", "Ovoz12345678!");
+        String lateVoter = createUserAndLogin("Kech Kelgan", "ovoz14@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -320,7 +320,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         String poll = createPoll(token, "Har yili takrorlanadigan so'rovnoma");
         long firstId = id(poll, "$.id");
 
-        String voterToken = registerAndLogin("Birinchi Mavsum", "ovoz15@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Birinchi Mavsum", "ovoz15@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", firstId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -408,7 +408,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         String poll = createTwoQuestionPoll(token, false);
         long pollId = id(poll, "$.id");
 
-        String voterToken = registerAndLogin("Statistik", "ovoz9@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Statistik", "ovoz9@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -439,7 +439,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         long questionId = id(poll, "$.questions[0].id");
         long keptOptionId = id(poll, "$.questions[0].options[0].id");
 
-        String voterToken = registerAndLogin("Tahrir Ovozi", "ovoz10@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Tahrir Ovozi", "ovoz10@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -481,7 +481,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         long secondQuestionId = id(poll, "$.questions[1].id");
 
         // Ishtirokchi ikkala savolga javob beradi
-        String voterToken = registerAndLogin("Ovozi Ochadi", "ovoz11@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("Ovozi Ochadi", "ovoz11@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [
@@ -534,7 +534,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
         String poll = createPoll(token, "O'chiriladigan so'rovnoma sinovi uchun");
         long pollId = id(poll, "$.id");
 
-        String voterToken = registerAndLogin("O'chiruvchi", "ovoz12@test.uz", "Ovoz12345678!");
+        String voterToken = createUserAndLogin("O'chiruvchi", "ovoz12@test.uz", "Ovoz12345678!");
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", pollId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
@@ -649,7 +649,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$[0].typeLabel").value("Test"))
                 .andExpect(jsonPath("$[0].questions[0].options[0].correct").doesNotExist());
 
-        String voterToken = registerAndLogin("Test Ishlovchi", "quiz1@test.uz", "Quiz12345678!");
+        String voterToken = createUserAndLogin("Test Ishlovchi", "quiz1@test.uz", "Quiz12345678!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/polls/{id}/vote", quizId), """
@@ -708,7 +708,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                 id(quiz, "$.questions[0].options[0].id"),
                                 id(quiz, "$.questions[1].id"),
                                 id(quiz, "$.questions[1].options[1].id"))),
-                        registerAndLogin("Birinchi Ishtirokchi", "quiz3@test.uz", "Quiz12345678!")))
+                        createUserAndLogin("Birinchi Ishtirokchi", "quiz3@test.uz", "Quiz12345678!")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quizResult.correctCount").value(2));
 
@@ -724,7 +724,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                 id(quiz, "$.questions[0].options[1].id"),
                                 id(quiz, "$.questions[1].id"),
                                 id(quiz, "$.questions[1].options[1].id"))),
-                        registerAndLogin("Ikkinchi Ishtirokchi", "quiz4@test.uz", "Quiz12345678!")))
+                        createUserAndLogin("Ikkinchi Ishtirokchi", "quiz4@test.uz", "Quiz12345678!")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quizResult.correctCount").value(1));
 
@@ -751,7 +751,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                 """.formatted(
                                 id(poll, "$.questions[0].id"),
                                 id(poll, "$.questions[0].options[0].id"))),
-                        registerAndLogin("Ochiq Natija", "survey9@test.uz", "Ovoz12345678!")))
+                        createUserAndLogin("Ochiq Natija", "survey9@test.uz", "Ovoz12345678!")))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/polls/{id}", id(poll, "$.id")))
@@ -793,7 +793,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                         json(post("/api/v1/polls/{id}/vote", quizId), """
                                 {"answers": [{"questionId": %d, "optionIds": [%d]}]}
                                 """.formatted(questionId, first)),
-                        registerAndLogin("Yarim Javob", "quiz2@test.uz", "Quiz12345678!")))
+                        createUserAndLogin("Yarim Javob", "quiz2@test.uz", "Quiz12345678!")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quizResult.correctCount").value(0))
                 .andExpect(jsonPath("$.quizResult.questions[0].correctOptionIds.length()").value(2));

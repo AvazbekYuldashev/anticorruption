@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { contentApi } from '../api/content';
 import { EmptyState, ErrorBox, Spinner } from '../components/ui';
 import { errorMessage } from '../lib/errors';
+import { renderRichText } from '../lib/richText';
 
 /**
  * "Bo'lim haqida" sahifasi.
@@ -41,7 +42,7 @@ export function AboutPage() {
 
         {about.body && (
           <p className="mt-8 text-justify text-[15px] leading-7 whitespace-pre-line text-slate-700">
-            {about.body}
+            {renderRichText(about.body)}
           </p>
         )}
 
@@ -70,7 +71,7 @@ export function AboutPage() {
 
         {about.goal && (
           <p className="mt-8 border-l-4 border-brand-200 bg-brand-50/60 py-3 pl-4 text-[15px] leading-7 whitespace-pre-line text-slate-700">
-            {about.goal}
+            {renderRichText(about.goal)}
           </p>
         )}
       </div>

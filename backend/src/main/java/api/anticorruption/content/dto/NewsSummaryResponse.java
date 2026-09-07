@@ -13,6 +13,7 @@ import java.time.Instant;
 public record NewsSummaryResponse(
         Long id,
         String slug,
+        String languageCode,
         String title,
         String summary,
         String coverImageUrl,
@@ -29,6 +30,7 @@ public record NewsSummaryResponse(
         return new NewsSummaryResponse(
                 news.getId(),
                 news.getSlug(),
+                news.getLanguage().getCode(),
                 news.getTitle(),
                 news.getSummary(),
                 MediaUrls.of(news.getCoverImage()),

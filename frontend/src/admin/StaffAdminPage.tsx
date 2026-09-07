@@ -16,11 +16,20 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
-import { contentApi, type SaveStaffPayload } from '../api/content';
+import {
+  contentApi,
+  type SaveStaffPayload,
+  type SaveStaffTranslation,
+} from '../api/content';
+import type { StaffTranslation } from '../api/types';
+import { LANGUAGES } from '../i18n';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { RichTextField } from './RichTextField';
 
 const EMPTY: SaveStaffPayload = {
   fullName: '',
@@ -34,12 +43,65 @@ const EMPTY: SaveStaffPayload = {
   active: true,
 };
 
+/** Asosiy til: uning matni tarjima emas, xodim yozuvining o'zida turadi. */
+const BASE_LANGUAGE = 'uz';
+
+/** Faqat tarjima qilinadigan maydonlar. Telefon, email va surat tilga bog'liq emas. */
+interface TranslationForm {
+  fullName: string;
+  position: string;
+  academicDegree: string;
+  biography: string;
+  receptionHours: string;
+}
+
+const EMPTY_TRANSLATION: TranslationForm = {
+  fullName: '',
+  position: '',
+  academicDegree: '',
+  biography: '',
+  receptionHours: '',
+};
+
+type TranslationMap = Record<string, TranslationForm>;
+
+function toTranslationMap(translations: StaffTranslation[] = []): TranslationMap {
+  const map: TranslationMap = {};
+
+  for (const language of LANGUAGES) {
+    if (language.code === BASE_LANGUAGE) continue;
+    const found = translations.find((item) => item.languageCode === language.code);
+    map[language.code] = {
+      fullName: found?.fullName ?? '',
+      position: found?.position ?? '',
+      academicDegree: found?.academicDegree ?? '',
+      biography: found?.biography ?? '',
+      receptionHours: found?.receptionHours ?? '',
+    };
+  }
+  return map;
+}
+
+/** Bo'sh varaq serverga yuborilmaydi. */
+function toPayload(map: TranslationMap): SaveStaffTranslation[] {
+  return Object.entries(map)
+    .filter(([, value]) => Object.values(value).some((field) => field.trim() !== ''))
+    .map(([languageCode, value]) => ({ languageCode, ...value }));
+}
+
 export function StaffAdminPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const [dialog, setDialog] = useState<{ id: number | null; form: SaveStaffPayload } | null>(null);
+  const [dialog, setDialog] = useState<{
+    id: number | null;
+    form: SaveStaffPayload;
+    translations: TranslationMap;
+  } | null>(null);
   const [deleting, setDeleting] = useState<{ id: number; name: string } | null>(null);
+  const [activeLanguage, setActiveLanguage] = useState<string>(
+    LANGUAGES.find((language) => language.code !== BASE_LANGUAGE)!.code,
+  );
 
   const query = useQuery({ queryKey: ['admin', 'staff'], queryFn: contentApi.adminStaff });
 
@@ -50,8 +112,10 @@ export function StaffAdminPage() {
 
   const save = useMutation({
     mutationFn: () => {
-      const { id, form } = dialog!;
-      return id === null ? contentApi.createStaff(form) : contentApi.updateStaff(id, form);
+      const { id, form, translations } = dialog!;
+      const payload: SaveStaffPayload = { ...form, translations: toPayload(translations) };
+
+      return id === null ? contentApi.createStaff(payload) : contentApi.updateStaff(id, payload);
     },
     onSuccess: () => {
       setDialog(null);
@@ -76,7 +140,7 @@ export function StaffAdminPage() {
     <AdminPage
       title={t('admin.staffTitle')}
       action={
-        <Button variant="contained" onClick={() => setDialog({ id: null, form: EMPTY })}>
+        <Button variant="contained" onClick={() => setDialog({ id: null, form: EMPTY, translations: toTranslationMap() })}>
           {t('admin.addStaff')}
         </Button>
       }
@@ -151,6 +215,7 @@ export function StaffAdminPage() {
                                 displayOrder: member.displayOrder,
                                 active: member.active,
                               },
+                              translations: toTranslationMap(member.translations),
                             })
                           }
                         >
@@ -231,16 +296,12 @@ export function StaffAdminPage() {
             }
             fullWidth
           />
-          <TextField
+          <RichTextField
             label={t('admin.fieldBiography')}
-            value={dialog.form.biography}
-            onChange={(event) =>
-              setDialog({ ...dialog, form: { ...dialog.form, biography: event.target.value } })
-            }
+            value={dialog.form.biography ?? ''}
+            onChange={(biography) => setDialog({ ...dialog, form: { ...dialog.form, biography } })}
             helperText={t('admin.biographyHint')}
-            multiline
             minRows={4}
-            fullWidth
           />
           <Stack direction="row" spacing={2}>
             <TextField
@@ -295,6 +356,80 @@ export function StaffAdminPage() {
               label={t('common.active')}
             />
           </Stack>
+
+          {/*
+            Tarjimalar. Faqat matn: telefon, email, surat va tartib tilga
+            bog'liq emas va yuqorida bir marta kiritiladi. Bo'sh qoldirilgan
+            maydon saytda asosiy tildagi matnni ko'rsatadi.
+          */}
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              {t('admin.newsTranslations')}
+            </Typography>
+
+            <Tabs
+              value={activeLanguage}
+              onChange={(_, value: string) => setActiveLanguage(value)}
+              variant="scrollable"
+              scrollButtons="auto"
+            >
+              {LANGUAGES.filter((language) => language.code !== BASE_LANGUAGE).map((language) => (
+                <Tab key={language.code} value={language.code} label={language.name} />
+              ))}
+            </Tabs>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              {t('admin.translationFallbackHint')}
+            </Typography>
+
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              {(
+                [
+                  ['fullName', t('admin.colName')],
+                  ['position', t('admin.fieldPosition')],
+                  ['academicDegree', t('admin.fieldDegree')],
+                  ['receptionHours', t('admin.fieldReception')],
+                ] as const
+              ).map(([field, label]) => (
+                <TextField
+                  key={field}
+                  label={label}
+                  value={dialog.translations[activeLanguage]?.[field] ?? ''}
+                  onChange={(event) =>
+                    setDialog({
+                      ...dialog,
+                      translations: {
+                        ...dialog.translations,
+                        [activeLanguage]: {
+                          ...(dialog.translations[activeLanguage] ?? EMPTY_TRANSLATION),
+                          [field]: event.target.value,
+                        },
+                      },
+                    })
+                  }
+                  fullWidth
+                />
+              ))}
+
+              <RichTextField
+                label={t('admin.fieldBiography')}
+                value={dialog.translations[activeLanguage]?.biography ?? ''}
+                onChange={(biography) =>
+                  setDialog({
+                    ...dialog,
+                    translations: {
+                      ...dialog.translations,
+                      [activeLanguage]: {
+                        ...(dialog.translations[activeLanguage] ?? EMPTY_TRANSLATION),
+                        biography,
+                      },
+                    },
+                  })
+                }
+                minRows={3}
+              />
+            </Stack>
+          </Box>
         </FormDialog>
       )}
 

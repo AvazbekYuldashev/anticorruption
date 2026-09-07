@@ -18,7 +18,7 @@ import {
 import { contentApi, type SaveNewsBlock } from '../api/content';
 import type { NewsBlockResponse, NewsBlockType } from '../api/types';
 import { errorMessage } from '../lib/errors';
-import { RICH_TEXT_MARKS, renderRichText } from '../lib/richText';
+import { applyLink, applyMark, RICH_TEXT_MARKS, renderRichText } from '../lib/richText';
 
 /** Albomdagi bitta rasm. */
 export interface EditorImage {
@@ -386,12 +386,31 @@ function TextBlockFields({
     const element = inputRef.current;
     if (!element) return;
 
-    const start = element.selectionStart;
-    const end = element.selectionEnd;
-    const selected = block.text.slice(start, end) || t('admin.sampleText');
+    const result = applyMark(
+      block.text,
+      element.selectionStart,
+      element.selectionEnd,
+      mark,
+      t('admin.sampleText'),
+    );
+    onChangeText(result.text);
+    pendingSelection.current = result.selection;
+  }
 
-    onChangeText(block.text.slice(0, start) + mark + selected + mark + block.text.slice(end));
-    pendingSelection.current = [start + mark.length, start + mark.length + selected.length];
+  /** Tanlangan matnni havolaga aylantiradi va kursorni manzil o'rniga qo'yadi. */
+  function link() {
+    const element = inputRef.current;
+    if (!element) return;
+
+    const result = applyLink(
+      block.text,
+      element.selectionStart,
+      element.selectionEnd,
+      t('admin.sampleText'),
+      'https://',
+    );
+    onChangeText(result.text);
+    pendingSelection.current = result.selection;
   }
 
   return (
@@ -433,6 +452,9 @@ function TextBlockFields({
             title={t('admin.strike')}
           >
             <s>S</s>
+          </Button>
+          <Button size="small" onClick={link} title={t('admin.link')}>
+            🔗
           </Button>
         </Stack>
       </Stack>

@@ -17,6 +17,20 @@
   --color-brand-800: #1e3a8a;
   --color-brand-900: #172554;
 
+  /*
+   * Holat ranglari. Ma'nosi qat'iy biriktirilgan (yaxshi -> tanqidiy) va hech
+   * qachon oddiy "seriya rangi" sifatida ishlatilmaydi: kategoriya yoki
+   * fakultetni shu ranglar bilan bo'yash mumkin emas.
+   *
+   * Sariq va to'q sariq oq fonda 3:1 dan past chiqadi - shuning uchun ular
+   * doim yozuv bilan birga ko'rsatiladi, rang yolg'iz ma'no tashimaydi.
+   * Matn (raqam) sifatida esa faqat yashil va qizil ishlatiladi.
+   */
+  --color-status-good: #0ca30c;
+  --color-status-warning: #fab219;
+  --color-status-serious: #ec835a;
+  --color-status-critical: #d03b3b;
+
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 

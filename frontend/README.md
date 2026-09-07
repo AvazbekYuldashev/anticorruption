@@ -83,10 +83,55 @@ o'zgarganda ranglar joyida qoladi.
 yuklanmaydi: institut sayti o'zgarsa ham portal ko'rinishi buzilmaydi.
 Asl 2095×2095 (594 KB) tasvir 256 va 64 px o'lchamlarga keltirilgan.
 
+## Seans
+
+Token brauzerda saqlanmaydi. Backend uni `HttpOnly` cookie'da beradi, ya'ni
+sahifadagi JavaScript unga umuman kira olmaydi — `localStorage` bilan XSS
+holatida token o'g'irlanishi mumkin edi.
+
+- `src/lib/session.ts` da token yo'q: u yerda faqat CSRF tokenini cookie'dan
+  o'qish va "seans bor" belgisi. Belgi token emas — usiz ilova har ochilishida
+  anonim mehmon uchun ham `/me` va `/auth/refresh` so'rovlarini yuborardi.
+- `src/api/client.ts` yozuv so'rovlariga `X-XSRF-TOKEN` sarlavhasini qo'yadi
+  (cookie bo'lmasa avval `/auth/csrf` ni chaqiradi) va har so'rovni
+  `credentials: 'include'` bilan yuboradi.
+- Kirish tokeni 15 daqiqalik, shuning uchun **401 odatiy hol** — u "chiqib
+  ketdingiz" degani emas. Mijoz seansni yangilab, so'rovni bir marta
+  qaytaradi. Bir vaqtda kelgan bir nechta 401 bitta yangilash so'rovini
+  yuboradi (aks holda token aylanishi bir-birini bekor qilardi).
+
+## Matn formatlash
+
+Yangilik bloklari, "Bo'lim haqida" matni va xodim biografiyasi formatlash
+paneli bilan tahrirlanadi (`RichTextField`): qalin, kursiv, tagli, chizilgan
+va havola.
+
+Matn **HTML sifatida saqlanmaydi** — faqat `**qalin**` kabi belgilar.
+Shuning uchun tozalash (sanitizatsiya) umuman kerak emas: `renderRichText`
+faqat o'zi biladigan elementlarni yasaydi, qolgan hamma narsa oddiy matn
+bo'lib qoladi. Havola manzillari ham tekshiriladi — `javascript:` va `data:`
+kabi sxemalar havola bo'lmaydi.
+
+## Testlar
+
+```bash
+npm test          # bir marta
+npm run test:watch
+```
+
+Vitest + Testing Library, muhit — jsdom. Sozlama `vitest.config.ts` da
+(`vite.config.ts` dan alohida: testlarga dev-proksi va Tailwind kerak emas).
+
+Testlar `tsconfig.app.json` dan chiqarilgan — shu tufayli `npm run build`
+vitest o'rnatilmagan mashinada ham ishlaydi.
+
+Hozir qoplangan: seans qatlami (`session.ts`, `client.ts`) — CSRF sarlavhasi,
+401 dan keyin avtomatik yangilash, bir vaqtdagi so'rovlarning bitta yangilashga
+ulanishi, kirish so'rovi uchun istisno, xatolik kodlarining `ApiError` ga
+o'tishi.
+
 ## Keyingi qadamlar
 
-- **Token saqlash.** Hozir `localStorage` — XSS holatida o'g'irlanishi mumkin.
-  Ishonchliroq yechim: backend `HttpOnly` cookie bersin (CSRF himoyasi bilan).
-- **Kontent muharriri.** Yangilik va sahifa matni hozir oddiy `textarea`;
-  rich-text muharriri qo'shilishi mumkin.
-- **Testlar.** Vitest + Testing Library bilan asosiy oqimlarni qoplash.
+- **Komponent testlari.** Murojaat formasi va admin paneli oqimlari hali
+  qoplanmagan.
+

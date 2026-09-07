@@ -18,13 +18,21 @@ import {
   Typography,
 } from '@mui/material';
 import { referenceApi } from '../api/reference';
-import { usersApi } from '../api/users';
+import { usersApi, type CreateUserPayload } from '../api/users';
 import type { Role } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../lib/format';
-import { AdminPage, MutationError, QueryState } from './common';
+import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
 
 const ROLES: Role[] = ['CITIZEN', 'MODERATOR', 'ADMIN'];
+
+const EMPTY_FORM: CreateUserPayload = {
+  fullName: '',
+  email: '',
+  phone: '',
+  password: '',
+  role: 'CITIZEN',
+};
 
 export function UsersPage() {
   const { t } = useTranslation();
@@ -34,6 +42,8 @@ export function UsersPage() {
   const [role, setRole] = useState<Role | ''>('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [form, setForm] = useState<CreateUserPayload | null>(null);
+  const [deleting, setDeleting] = useState<{ id: number; name: string } | null>(null);
 
   // Rol nomlari backenddan keladi - ular joriy tilda bo'ladi.
   const reference = useQuery({ queryKey: ['reference'], queryFn: referenceApi.all });
@@ -60,13 +70,37 @@ export function UsersPage() {
     onSuccess: refresh,
   });
 
+  const create = useMutation({
+    mutationFn: () => usersApi.create(form!),
+    onSuccess: () => {
+      setForm(null);
+      refresh();
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: () => usersApi.remove(deleting!.id),
+    onSuccess: () => {
+      setDeleting(null);
+      refresh();
+    },
+  });
+
   /** Rol nomi joriy tilda ma'lumotnomadan olinadi. */
   function roleLabel(value: Role): string {
     return reference.data?.roles.find((option) => option.value === value)?.label ?? value;
   }
 
   return (
-    <AdminPage title={t('admin.usersTitle')}>
+    <AdminPage
+      title={t('admin.usersTitle')}
+      description={t('admin.usersHint')}
+      action={
+        <Button variant="contained" onClick={() => setForm(EMPTY_FORM)}>
+          {t('admin.addUser')}
+        </Button>
+      }
+    >
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <TextField
           select
@@ -88,7 +122,7 @@ export function UsersPage() {
         </TextField>
       </Stack>
 
-      <MutationError error={roleMutation.error ?? stateMutation.error} />
+      <MutationError error={roleMutation.error ?? stateMutation.error ?? remove.error} />
 
       <QueryState isPending={query.isPending} error={query.error}>
         {query.data && (
@@ -163,6 +197,15 @@ export function UsersPage() {
                           >
                             {user.enabled ? t('admin.block') : t('admin.unblock')}
                           </Button>
+                          {/* O'chirish - murojaati yo'q hisoblar uchun; qolganini bloklash kerak. */}
+                          <Button
+                            size="small"
+                            color="error"
+                            disabled={isSelf}
+                            onClick={() => setDeleting({ id: user.id, name: user.fullName })}
+                          >
+                            {t('common.delete')}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -186,6 +229,71 @@ export function UsersPage() {
           </Paper>
         )}
       </QueryState>
+
+      {form && (
+        <FormDialog
+          open
+          title={t('admin.addUser')}
+          busy={create.isPending}
+          error={create.error}
+          onClose={() => setForm(null)}
+          onSubmit={() => create.mutate()}
+        >
+          <TextField
+            label={t('admin.colName')}
+            value={form.fullName}
+            onChange={(event) => setForm({ ...form, fullName: event.target.value })}
+            required
+            fullWidth
+          />
+          <TextField
+            label={t('auth.fieldEmail')}
+            type="email"
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            helperText={t('admin.emailIsLogin')}
+            required
+            fullWidth
+          />
+          <TextField
+            label={t('staff.phone')}
+            value={form.phone ?? ''}
+            onChange={(event) => setForm({ ...form, phone: event.target.value })}
+            placeholder="+998901234567"
+            fullWidth
+          />
+          <TextField
+            label={t('auth.fieldPassword')}
+            type="text"
+            value={form.password}
+            onChange={(event) => setForm({ ...form, password: event.target.value })}
+            helperText={t('admin.passwordHint')}
+            required
+            fullWidth
+          />
+          <TextField
+            select
+            label={t('admin.colRole')}
+            value={form.role}
+            onChange={(event) => setForm({ ...form, role: event.target.value as Role })}
+            fullWidth
+          >
+            {ROLES.map((value) => (
+              <MenuItem key={value} value={value}>
+                {roleLabel(value)}
+              </MenuItem>
+            ))}
+          </TextField>
+        </FormDialog>
+      )}
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title={deleting?.name ?? ''}
+        busy={remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => remove.mutate()}
+      />
     </AdminPage>
   );
 }

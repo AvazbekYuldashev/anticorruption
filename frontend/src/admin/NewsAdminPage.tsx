@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -17,8 +17,10 @@ import {
   TableRow,
   TextField,
   Typography,
+  MenuItem,
 } from '@mui/material';
 import { contentApi, type SaveNewsPayload } from '../api/content';
+import { LANGUAGES } from '../i18n';
 import { formatDate } from '../lib/format';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
 
@@ -26,7 +28,13 @@ import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from 
  * Yaratishda faqat sarlavha va qisqa mazmun so'raladi. Mazmun bloklari
  * tafsilot sahifasida qo'shiladi - u yerda "+" bilan uzluksiz ishlash qulay.
  */
-const EMPTY: SaveNewsPayload = { title: '', summary: '', published: false, blocks: [] };
+const EMPTY: SaveNewsPayload = {
+  title: '',
+  summary: '',
+  published: false,
+  language: 'uz',
+  blocks: [],
+};
 
 export function NewsAdminPage() {
   const { t } = useTranslation();
@@ -37,6 +45,26 @@ export function NewsAdminPage() {
   const [size, setSize] = useState(20);
   const [dialog, setDialog] = useState<{ form: SaveNewsPayload } | null>(null);
   const [deleting, setDeleting] = useState<{ id: number; title: string } | null>(null);
+  const [params, setParams] = useSearchParams();
+
+  /*
+   * Tafsilot sahifasidagi "tarjima qo'shish" tugmasi shu sahifaga
+   * ?translationOf=12&language=ru ko'rinishida qaytaradi. Shunda yaratish
+   * oynasi darrov ochiladi va yangi yozuv o'sha maqolaning guruhiga ulanadi.
+   */
+  useEffect(() => {
+    const translationOf = params.get('translationOf');
+    if (!translationOf) return;
+
+    setDialog({
+      form: {
+        ...EMPTY,
+        language: params.get('language') ?? 'uz',
+        translationOf: Number(translationOf),
+      },
+    });
+    setParams({}, { replace: true });
+  }, [params, setParams]);
 
   const query = useQuery({
     queryKey: ['admin', 'news', page, size],
@@ -127,6 +155,7 @@ export function NewsAdminPage() {
                               <Typography variant="caption" color="text.secondary">
                                 /{item.slug}
                               </Typography>
+                              <Chip size="small" label={item.languageCode} />
                               {item.imageCount > 0 && (
                                 <Chip
                                   size="small"
@@ -237,6 +266,26 @@ export function NewsAdminPage() {
             rows={2}
             fullWidth
           />
+          <TextField
+            select
+            label={t('admin.fieldNewsLanguage')}
+            value={dialog.form.language ?? 'uz'}
+            onChange={(event) =>
+              setDialog({ form: { ...dialog.form, language: event.target.value } })
+            }
+            helperText={
+              dialog.form.translationOf
+                ? t('admin.newsTranslationHint')
+                : t('admin.newsLanguageHint')
+            }
+            fullWidth
+          >
+            {LANGUAGES.map((language) => (
+              <MenuItem key={language.code} value={language.code}>
+                {language.name}
+              </MenuItem>
+            ))}
+          </TextField>
           <Typography variant="caption" color="text.secondary">
             {t('admin.contentHint')}
           </Typography>

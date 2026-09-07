@@ -29,6 +29,8 @@ public final class MessageKeys {
     public static final String ERROR_AUTH_ACCOUNT_DISABLED = "error.auth.accountDisabled";
     public static final String ERROR_AUTH_EMAIL_TAKEN = "error.auth.emailTaken";
     public static final String ERROR_ACCESS_DENIED = "error.access.denied";
+    public static final String ERROR_AUTH_REFRESH_INVALID = "error.auth.refreshInvalid";
+    public static final String ERROR_CSRF_INVALID = "error.csrf.invalid";
 
     // ---------------------------------------------------------------- topilmadi
 
@@ -53,6 +55,8 @@ public final class MessageKeys {
     public static final String COMPLAINT_ALREADY_HIDDEN = "error.complaint.alreadyHidden";
     public static final String COMPLAINT_ALREADY_VISIBLE = "error.complaint.alreadyVisible";
     public static final String COMPLAINT_ACCEPTED = "message.complaint.accepted";
+    public static final String COMPLAINT_RESPONSE_EMPTY = "error.complaint.responseEmpty";
+    public static final String COMPLAINT_RESPONSE_HISTORY = "message.complaint.responseHistory";
 
     // ---------------------------------------------------------------- tuzilma
 
@@ -72,6 +76,10 @@ public final class MessageKeys {
     public static final String USER_CANNOT_DISABLE_SELF = "error.user.cannotDisableSelf";
     public static final String USER_ALREADY_ENABLED = "error.user.alreadyEnabled";
     public static final String USER_ALREADY_DISABLED = "error.user.alreadyDisabled";
+    public static final String USER_CANNOT_DELETE_SELF = "error.user.cannotDeleteSelf";
+    public static final String USER_HAS_COMPLAINTS = "error.user.hasComplaints";
+    public static final String USER_CURRENT_PASSWORD_WRONG = "error.user.currentPasswordWrong";
+    public static final String USER_PASSWORD_NOT_CHANGED = "error.user.passwordNotChanged";
 
     // ---------------------------------------------------------------- fayllar
 
@@ -84,6 +92,8 @@ public final class MessageKeys {
     public static final String FILE_NOT_FOUND = "error.file.notFound";
     public static final String FILE_UNREADABLE = "error.file.unreadable";
     public static final String FILE_TOO_LARGE = "error.file.tooLarge";
+    public static final String FILE_INFECTED = "error.file.infected";
+    public static final String FILE_SCAN_UNAVAILABLE = "error.file.scanUnavailable";
     public static final String ATTACHMENT_COMPLAINT_CLOSED = "error.attachment.complaintClosed";
     public static final String ATTACHMENT_TOO_MANY = "error.attachment.tooMany";
 
@@ -97,6 +107,7 @@ public final class MessageKeys {
     public static final String NEWS_TEXT_BLOCK_EMPTY = "error.news.textBlockEmpty";
     public static final String NEWS_IMAGE_BLOCK_MISSING = "error.news.imageBlockMissing";
     public static final String NEWS_GALLERY_BLOCK_EMPTY = "error.news.galleryBlockEmpty";
+    public static final String NEWS_TRANSLATION_EXISTS = "error.news.translationExists";
 
     // ---------------------------------------------------------------- so'rovnoma
 
@@ -126,5 +137,7 @@ public final class MessageKeys {
     public static final String EMAIL_STATUS_SUBJECT = "email.statusChanged.subject";
     public static final String EMAIL_STATUS_BODY = "email.statusChanged.body";
     public static final String EMAIL_STATUS_RESPONSE_BLOCK = "email.statusChanged.responseBlock";
+    public static final String EMAIL_RESPONSE_SUBJECT = "email.responseAdded.subject";
+    public static final String EMAIL_RESPONSE_BODY = "email.responseAdded.body";
     public static final String EMAIL_HISTORY_INITIAL = "message.complaint.historyInitial";
 }

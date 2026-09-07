@@ -1,10 +1,12 @@
 package api.anticorruption.content;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +17,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Korrupsiyaga qarshi kurash bo'limi xodimi.
@@ -83,6 +87,11 @@ public class StaffMember {
     private Instant createdAt;
 
     @UpdateTimestamp
+    /** Boshqa tillardagi matn: ism, lavozim, unvon, biografiya, qabul vaqti. */
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<StaffMemberTranslation> translations = new ArrayList<>();
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }

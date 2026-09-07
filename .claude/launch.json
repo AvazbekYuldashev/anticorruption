@@ -4,7 +4,11 @@
     {
       "name": "backend",
       "runtimeExecutable": "java",
-      "runtimeArgs": ["-jar", "target/anticorruption-0.0.1-SNAPSHOT.jar"],
+      "runtimeArgs": [
+        "-jar",
+        "backend/target/anticorruption-0.0.1-SNAPSHOT.jar",
+        "--app.storage.location=backend/uploads"
+      ],
       "port": 8080
     },
     {

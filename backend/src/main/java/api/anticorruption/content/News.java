@@ -1,8 +1,11 @@
 package api.anticorruption.content;
 
+import api.anticorruption.common.i18n.AppLanguage;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -33,7 +36,8 @@ import java.util.List;
         name = "news",
         indexes = {
                 @Index(name = "idx_news_slug", columnList = "slug", unique = true),
-                @Index(name = "idx_news_published_at", columnList = "published_at")
+                @Index(name = "idx_news_published_at", columnList = "published_at"),
+                @Index(name = "idx_news_translation", columnList = "translation_group, language", unique = true)
         }
 )
 @Getter
@@ -50,6 +54,29 @@ public class News {
     /** URL uchun qulay nom, sarlavhadan avtomatik yasaladi. */
     @Column(nullable = false, length = 140)
     private String slug;
+
+    /**
+     * Yangilik qaysi tilda yozilgan.
+     *
+     * <p>Har bir til uchun alohida yozuv bo'ladi - tarjima jadvali emas.
+     * Sabab amaliy: ruscha maqola ko'pincha o'zbekchasidan qisqaroq bo'ladi,
+     * rasmlar ham boshqacha tanlanadi. Muharrir uchun bu "alohida maqola"
+     * bo'lgani qulayroq.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private AppLanguage language = AppLanguage.DEFAULT;
+
+    /**
+     * Bir maqolaning turli tildagi nusxalarini bog'lovchi belgi.
+     *
+     * <p>Birinchi nusxa yaratilganda tasodifiy qiymat oladi, tarjimalari esa
+     * o'shani meros qilib oladi. Shu tufayli sayt "bu maqolaning ruschasi
+     * bormi?" degan savolga bitta so'rov bilan javob bera oladi.
+     */
+    @Column(name = "translation_group", nullable = false, length = 36)
+    private String translationGroup;
 
     @Column(nullable = false, length = 250)
     private String title;

@@ -79,12 +79,16 @@ function Header() {
                       {t('nav.admin')}
                     </Link>
                   )}
-                  <Link
-                    to="/my"
-                    className="text-xs font-medium text-white/90 hover:text-white"
-                  >
-                    {t('nav.myComplaints')}
-                  </Link>
+                  {/*
+                    "Mening murojaatlarim" - fuqaro o'zi yuborgan murojaatlar
+                    ro'yxati. Xodim murojaat yubormaydi, shuning uchun unga bu
+                    havola doim bo'sh sahifa ochardi.
+                  */}
+                  {!isStaff && (
+                    <Link to="/my" className="text-xs font-medium text-white/90 hover:text-white">
+                      {t('nav.myComplaints')}
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={logout}
@@ -97,12 +101,6 @@ function Header() {
                 <>
                   <Link to="/login" className="text-xs font-medium text-white/90 hover:text-white">
                     {t('nav.login')}
-                  </Link>
-                  <Link
-                    to="/signup"
-                    className="rounded bg-white/15 px-2.5 py-1 text-xs font-medium hover:bg-white/25"
-                  >
-                    {t('nav.signUp')}
                   </Link>
                 </>
               )}
@@ -180,13 +178,15 @@ function Header() {
                       {t('nav.admin')}
                     </Link>
                   )}
-                  <Link
-                    to="/my"
-                    onClick={() => setMobileOpen(false)}
-                    className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    {t('nav.myComplaints')}
-                  </Link>
+                  {!isStaff && (
+                    <Link
+                      to="/my"
+                      onClick={() => setMobileOpen(false)}
+                      className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      {t('nav.myComplaints')}
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -207,13 +207,6 @@ function Header() {
                     className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
                     {t('nav.login')}
-                  </Link>
-                  <Link
-                    to="/signup"
-                    onClick={() => setMobileOpen(false)}
-                    className="rounded px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-50"
-                  >
-                    {t('nav.signUp')}
                   </Link>
                 </>
               )}

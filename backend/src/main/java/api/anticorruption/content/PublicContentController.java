@@ -56,7 +56,7 @@ public class PublicContentController {
     @Operation(summary = "Bo'lim xodimlari", description = "Qabul vaqti va aloqa ma'lumotlari bilan")
     @GetMapping("/staff")
     public ResponseEntity<List<StaffMemberResponse>> staff() {
-        return ResponseEntity.ok(siteContentService.listStaff(false));
+        return ResponseEntity.ok(siteContentService.listStaff());
     }
 
     // ------------------------------------------------------------- bo'lim haqida

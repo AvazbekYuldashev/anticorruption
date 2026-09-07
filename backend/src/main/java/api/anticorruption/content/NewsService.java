@@ -6,10 +6,14 @@ import api.anticorruption.attachment.StorageProperties;
 import api.anticorruption.common.Slugs;
 import api.anticorruption.common.dto.PageResponse;
 import api.anticorruption.common.exception.BadRequestException;
+import api.anticorruption.common.exception.ConflictException;
 import api.anticorruption.common.exception.ResourceNotFoundException;
+import api.anticorruption.common.i18n.AppLanguage;
 import api.anticorruption.common.i18n.MessageKeys;
+import api.anticorruption.common.i18n.Translator;
 import api.anticorruption.content.dto.NewsDetailResponse;
 import api.anticorruption.content.dto.NewsSummaryResponse;
+import api.anticorruption.content.dto.NewsTranslationResponse;
 import api.anticorruption.content.dto.SaveNewsRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /** Yangiliklar bo'limi va ularning blokli mazmuni. */
@@ -40,14 +45,26 @@ public class NewsService {
     private final NewsBlockRepository newsBlockRepository;
     private final FileStorageService fileStorageService;
     private final StorageProperties storageProperties;
+    private final Translator translator;
 
     // ---------------------------------------------------------------- ochiq
 
+    /**
+     * Chop etilgan yangiliklar - so'rov tilida.
+     *
+     * <p>Til {@code ?lang=} parametridan olinadi. So'ralgan tilda nusxasi
+     * bo'lmagan maqola ro'yxatdan tushib qolmaydi: uning asosiy tildagi
+     * varianti ko'rsatiladi.
+     */
     @Transactional(readOnly = true)
     public PageResponse<NewsSummaryResponse> listPublished(String query, Pageable pageable) {
+        AppLanguage language = translator.currentLanguage();
+
         Page<News> page = (query == null || query.isBlank())
-                ? newsRepository.findByPublishedTrueOrderByPublishedAtDesc(pageable)
-                : newsRepository.searchPublished("%" + query.trim().toLowerCase(Locale.ROOT) + "%", pageable);
+                ? newsRepository.findPublishedInLanguage(language, AppLanguage.DEFAULT, pageable)
+                : newsRepository.searchPublishedInLanguage(
+                        "%" + query.trim().toLowerCase(Locale.ROOT) + "%",
+                        language, AppLanguage.DEFAULT, pageable);
 
         return toSummaryPage(page);
     }
@@ -64,7 +81,7 @@ public class NewsService {
         newsRepository.incrementViewCount(news.getId());
 
         // Entity ataylab o'zgartirilmaydi - javobda yangi son ko'rinsin, xolos.
-        return NewsDetailResponse.from(news, news.getViewCount() + 1);
+        return NewsDetailResponse.from(news, news.getViewCount() + 1, publishedTranslations(news));
     }
 
     // ---------------------------------------------------------------- admin
@@ -76,15 +93,20 @@ public class NewsService {
 
     @Transactional(readOnly = true)
     public NewsDetailResponse findById(Long newsId) {
-        return NewsDetailResponse.from(requireNews(newsId));
+        News news = requireNews(newsId);
+        return NewsDetailResponse.from(news, allTranslations(news));
     }
 
     @Transactional
     public NewsDetailResponse create(SaveNewsRequest request) {
         boolean published = Boolean.TRUE.equals(request.published());
+        AppLanguage language = AppLanguage.from(request.language());
+        String group = translationGroupFor(request.translationOf(), language);
 
         News news = News.builder()
                 .slug(uniqueSlug(request.title(), null))
+                .language(language)
+                .translationGroup(group)
                 .title(request.title().trim())
                 .summary(blankToNull(request.summary()))
                 .published(published)
@@ -94,10 +116,10 @@ public class NewsService {
         applyBlocks(news, request.blocks());
         newsRepository.save(news);
 
-        log.info("Yangilik yaratildi: {} ({} ta blok, chop etilgan: {})",
-                news.getSlug(), news.getBlocks().size(), published);
+        log.info("Yangilik yaratildi: {} ({}, {} ta blok, chop etilgan: {})",
+                news.getSlug(), language.getCode(), news.getBlocks().size(), published);
 
-        return NewsDetailResponse.from(news);
+        return NewsDetailResponse.from(news, allTranslations(news));
     }
 
     @Transactional
@@ -113,6 +135,14 @@ public class NewsService {
         news.setTitle(request.title().trim());
         news.setSummary(blankToNull(request.summary()));
 
+        if (request.language() != null && !request.language().isBlank()) {
+            AppLanguage language = AppLanguage.from(request.language());
+            if (language != news.getLanguage()) {
+                requireLanguageFree(news.getTranslationGroup(), language, news.getId());
+                news.setLanguage(language);
+            }
+        }
+
         if (request.published() != null) {
             applyPublishState(news, request.published());
         }
@@ -126,7 +156,7 @@ public class NewsService {
         removed.removeAll(imageNames(news));
         removed.forEach(name -> fileStorageService.delete(name, StorageArea.PUBLIC));
 
-        return NewsDetailResponse.from(news);
+        return NewsDetailResponse.from(news, allTranslations(news));
     }
 
     @Transactional
@@ -139,7 +169,7 @@ public class NewsService {
         }
         applyPublishState(news, published);
         newsRepository.save(news);
-        return NewsDetailResponse.from(news);
+        return NewsDetailResponse.from(news, allTranslations(news));
     }
 
     /** Muqova rasmini almashtiradi. Eski rasm diskdan o'chiriladi. */
@@ -152,7 +182,7 @@ public class NewsService {
         newsRepository.save(news);
 
         fileStorageService.delete(previous, StorageArea.PUBLIC);
-        return NewsDetailResponse.from(news);
+        return NewsDetailResponse.from(news, allTranslations(news));
     }
 
     @Transactional
@@ -349,6 +379,51 @@ public class NewsService {
         return newsRepository.findBySlug(slug)
                 .map(existing -> existing.getId().equals(currentId))
                 .orElse(true);
+    }
+
+    /**
+     * Yangi yozuv qaysi tarjima guruhiga tegishli bo'lishini aniqlaydi.
+     *
+     * <p>{@code translationOf} berilmasa - bu mustaqil maqola va o'ziga
+     * yangi guruh ochadi. Berilsa - o'sha maqolaning guruhiga qo'shiladi,
+     * lekin bitta guruhda bir tildan ikkitasi bo'lishi mumkin emas.
+     */
+    private String translationGroupFor(Long translationOf, AppLanguage language) {
+        if (translationOf == null) {
+            return UUID.randomUUID().toString();
+        }
+
+        String group = requireNews(translationOf).getTranslationGroup();
+        requireLanguageFree(group, language, null);
+        return group;
+    }
+
+    private void requireLanguageFree(String group, AppLanguage language, Long exceptId) {
+        boolean taken = exceptId == null
+                ? newsRepository.existsByTranslationGroupAndLanguage(group, language)
+                : newsRepository.existsByTranslationGroupAndLanguageAndIdNot(group, language, exceptId);
+
+        if (taken) {
+            throw new ConflictException(MessageKeys.NEWS_TRANSLATION_EXISTS, language.getDisplayName());
+        }
+    }
+
+    /** Boshqa tillardagi nusxalar - o'zidan tashqari. */
+    private List<NewsTranslationResponse> allTranslations(News news) {
+        return toTranslations(newsRepository.findByTranslationGroupOrderByLanguageAsc(
+                news.getTranslationGroup()), news.getId());
+    }
+
+    private List<NewsTranslationResponse> publishedTranslations(News news) {
+        return toTranslations(newsRepository.findByTranslationGroupAndPublishedTrueOrderByLanguageAsc(
+                news.getTranslationGroup()), news.getId());
+    }
+
+    private List<NewsTranslationResponse> toTranslations(List<News> siblings, Long selfId) {
+        return siblings.stream()
+                .filter(item -> !item.getId().equals(selfId))
+                .map(NewsTranslationResponse::from)
+                .toList();
     }
 
     private News requireNews(Long newsId) {

@@ -12,6 +12,7 @@ import java.time.Duration;
  * @param window            oyna uzunligi
  * @param maxTrackedClients xotirada saqlanadigan mijozlar soni chegarasi;
  *                          undan oshsa eskirgan yozuvlar tozalanadi
+ * @param store             hisob qayerda yuritiladi: xotirada yoki Redis da
  */
 @ConfigurationProperties(prefix = "app.rate-limit")
 public record RateLimitProperties(
@@ -22,6 +23,18 @@ public record RateLimitProperties(
 
         @DefaultValue("1m") Duration window,
 
-        @DefaultValue("10000") int maxTrackedClients
+        @DefaultValue("10000") int maxTrackedClients,
+
+        @DefaultValue("memory") Store store
 ) {
+
+    /** Hisob ombori. */
+    public enum Store {
+
+        /** Xotirada: bitta nusxa uchun. */
+        MEMORY,
+
+        /** Redis da: chegara barcha nusxalar uchun umumiy. */
+        REDIS
+    }
 }

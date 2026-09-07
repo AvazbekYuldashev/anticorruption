@@ -1,5 +1,6 @@
 package api.anticorruption.security;
 
+import api.anticorruption.auth.AuthCookieService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,8 +19,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Har bir so'rovda "Authorization: Bearer &lt;token&gt;" sarlavhasini tekshiradi va
- * token to'g'ri bo'lsa foydalanuvchini SecurityContext ga joylaydi.
+ * Har bir so'rovda kirish tokenini topib, foydalanuvchini SecurityContext ga joylaydi.
+ *
+ * <p>Token avval {@code HttpOnly} cookie'dan qidiriladi - brauzer uchun asosiy
+ * yo'l shu. Cookie bo'lmasa "Authorization: Bearer" sarlavhasiga qaraladi:
+ * bu brauzerdan tashqari mijozlar (skript, integratsiya) uchun qoldirilgan.
  *
  * <p>Token bo'lmasa yoki yaroqsiz bo'lsa so'rov to'xtatilmaydi - shunchaki
  * autentifikatsiyasiz davom etadi. Ruxsat masalasini keyin SecurityFilterChain hal qiladi.
@@ -33,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
+    private final AuthCookieService cookieService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -63,6 +68,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String extractToken(HttpServletRequest request) {
+        return cookieService.readAccessToken(request).orElseGet(() -> headerToken(request));
+    }
+
+    private String headerToken(HttpServletRequest request) {
         String header = request.getHeader(HEADER);
         if (header != null && header.startsWith(PREFIX)) {
             String value = header.substring(PREFIX.length()).trim();

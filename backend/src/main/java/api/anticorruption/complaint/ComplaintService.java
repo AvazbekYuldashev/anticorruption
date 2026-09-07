@@ -14,6 +14,7 @@ import api.anticorruption.complaint.dto.ComplaintSummaryResponse;
 import api.anticorruption.complaint.dto.ComplaintTrackingResponse;
 import api.anticorruption.complaint.dto.CreateComplaintRequest;
 import api.anticorruption.complaint.dto.RegisterEntryResponse;
+import api.anticorruption.complaint.dto.SaveResponseRequest;
 import api.anticorruption.complaint.dto.UpdateStatusRequest;
 import api.anticorruption.notification.EmailService;
 import api.anticorruption.university.Department;
@@ -283,6 +284,69 @@ public class ComplaintService {
                 currentStatus,
                 newStatus,
                 complaint.getOfficialResponse());
+
+        return ComplaintResponse.from(complaint, translator);
+    }
+
+    /**
+     * Rasmiy javobni va/yoki ichki izohni saqlaydi - holatni o'zgartirmasdan.
+     *
+     * <p>Nima uchun alohida metod kerak: {@link #updateStatus} har doim holat
+     * o'tishini talab qiladi, yopilgan murojaatda esa o'tish qolmaydi. Ya'ni
+     * yopilgan murojaatga javob yozishning boshqa yo'li yo'q edi. Bu yerda
+     * holat tegilmaydi, shuning uchun {@code allowedTransitions} tekshiruvi
+     * ham, yopilish vaqtini qayta yozish ham yo'q.
+     *
+     * <p>Tarixga yozuv baribir qo'shiladi (eski va yangi holat bir xil):
+     * murojaat ustidagi har bir amal kim tomonidan qilingani ko'rinib tursin.
+     *
+     * @throws BadRequestException ikkala maydon ham bo'sh bo'lsa
+     */
+    @Transactional
+    public ComplaintResponse saveResponse(Long complaintId, SaveResponseRequest request, User staff) {
+        Complaint complaint = requireComplaint(complaintId);
+
+        String officialResponse = blankToNull(request.officialResponse());
+        String note = blankToNull(request.note());
+
+        if (officialResponse == null && note == null) {
+            throw new BadRequestException(MessageKeys.COMPLAINT_RESPONSE_EMPTY);
+        }
+
+        /*
+         * Xat faqat murojaatchiga ko'rinadigan javob haqiqatan o'zgargandagina
+         * yuboriladi: ichki izoh murojaatchiga tegishli emas, o'zgarmagan
+         * javob uchun esa qayta xat yuborish ortiqcha bezovtalik bo'lardi.
+         */
+        String previousResponse = complaint.getOfficialResponse();
+        boolean responseChanged = officialResponse != null && !officialResponse.equals(previousResponse);
+
+        if (officialResponse != null) {
+            complaint.setOfficialResponse(officialResponse);
+        }
+        if (complaint.getAssignee() == null) {
+            complaint.setAssignee(staff);
+        }
+
+        complaint.addHistoryEntry(ComplaintStatusHistory.builder()
+                .oldStatus(complaint.getStatus())
+                .newStatus(complaint.getStatus())
+                .note(note)
+                .changedBy(staff)
+                .build());
+
+        complaintRepository.save(complaint);
+        log.info("Murojaat {} ga javob yozildi (xodim id={}, javob o'zgardi: {})",
+                complaint.getTrackingCode(), staff.getId(), responseChanged);
+
+        if (responseChanged) {
+            emailService.sendResponseAdded(
+                    complaint.notificationEmail(),
+                    complaint.getLocale(),
+                    complaint.getTrackingCode(),
+                    complaint.getTitle(),
+                    complaint.getOfficialResponse());
+        }
 
         return ComplaintResponse.from(complaint, translator);
     }

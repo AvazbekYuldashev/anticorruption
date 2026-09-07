@@ -6,6 +6,7 @@ import api.anticorruption.complaint.dto.ComplaintResponse;
 import api.anticorruption.complaint.dto.ComplaintSearchFilter;
 import api.anticorruption.complaint.dto.ComplaintSummaryResponse;
 import api.anticorruption.complaint.dto.RegisterVisibilityRequest;
+import api.anticorruption.complaint.dto.SaveResponseRequest;
 import api.anticorruption.complaint.dto.UpdateStatusRequest;
 import api.anticorruption.security.AppUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -84,6 +85,19 @@ public class AdminComplaintController {
             @AuthenticationPrincipal AppUserPrincipal principal) {
 
         return ResponseEntity.ok(complaintService.updateStatus(id, request, principal.user()));
+    }
+
+    @Operation(
+            summary = "Javob yozish",
+            description = "Rasmiy javobni va/yoki ichki izohni holatni o'zgartirmasdan saqlaydi. "
+                    + "Yopilgan murojaatga ham yozish mumkin.")
+    @PatchMapping("/{id}/response")
+    public ResponseEntity<ComplaintResponse> saveResponse(
+            @PathVariable Long id,
+            @Valid @RequestBody SaveResponseRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal) {
+
+        return ResponseEntity.ok(complaintService.saveResponse(id, request, principal.user()));
     }
 
     @Operation(

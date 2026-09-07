@@ -2,12 +2,9 @@ package api.anticorruption.auth;
 
 import api.anticorruption.auth.dto.AuthResponse;
 import api.anticorruption.auth.dto.LoginRequest;
-import api.anticorruption.auth.dto.RegisterRequest;
-import api.anticorruption.common.exception.ConflictException;
-import api.anticorruption.common.i18n.MessageKeys;
+import api.anticorruption.common.exception.UnauthorizedException;
 import api.anticorruption.common.i18n.Translator;
 import api.anticorruption.security.JwtService;
-import api.anticorruption.user.Role;
 import api.anticorruption.user.User;
 import api.anticorruption.user.UserRepository;
 import api.anticorruption.user.dto.UserResponse;
@@ -18,14 +15,17 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 
 /**
- * Ro'yxatdan o'tish va tizimga kirish mantig'i.
+ * Tizimga kirish va seansni yangilash mantig'i.
+ *
+ * <p>Ikkala amal ham bir xil natija qaytaradi: qisqa muddatli kirish tokeni
+ * va yangi yangilash tokeni. Ularni cookie ga joylash kontrollerning ishi -
+ * bu yerda HTTP haqida hech narsa bilinmaydi.
  *
  * <p>Xatolik matnlari bu yerda yozilmaydi: Spring Security istisnolarining
  * turi kifoya, tarjimani {@code GlobalExceptionHandler} qiladi.
@@ -36,36 +36,13 @@ import java.util.Locale;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final Translator translator;
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        String email = normalizeEmail(request.email());
-
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ConflictException(MessageKeys.ERROR_AUTH_EMAIL_TAKEN);
-        }
-
-        User user = User.builder()
-                .fullName(request.fullName().trim())
-                .email(email)
-                .phone(blankToNull(request.phone()))
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .role(Role.CITIZEN)
-                .enabled(true)
-                .build();
-
-        userRepository.save(user);
-        log.info("Yangi foydalanuvchi ro'yxatdan o'tdi: id={}", user.getId());
-
-        return buildResponse(user);
-    }
-
-    @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request) {
+    public Session login(LoginRequest request) {
         String email = normalizeEmail(request.email());
         try {
             authenticationManager.authenticate(
@@ -80,21 +57,50 @@ public class AuthService {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new BadCredentialsException("bad credentials"));
 
-        return buildResponse(user);
+        return session(user, refreshTokenService.issue(user));
     }
 
-    private AuthResponse buildResponse(User user) {
-        return AuthResponse.of(
+    /**
+     * Yangilash tokenini yangisiga almashtiradi va yangi kirish tokeni beradi.
+     *
+     * <p>Eski token shu zahoti bekor qilinadi (rotation): agar u birovda ham
+     * bo'lsa, keyingi urinishda qayta ishlatish aniqlanadi va foydalanuvchining
+     * barcha seanslari uziladi.
+     */
+    @Transactional(noRollbackFor = UnauthorizedException.class)
+    public Session refresh(String refreshToken) {
+        RefreshTokenService.Rotation rotation = refreshTokenService.rotate(refreshToken);
+        return session(rotation.user(), rotation.refreshToken());
+    }
+
+    /**
+     * Foydalanuvchiga yangi seans beradi (parolni almashtirgandan keyin).
+     *
+     * <p>Parol almashtirilganda barcha yangilash tokenlari bekor qilinadi -
+     * shu jumladan joriy qurilmaniki ham. Agar shundan keyin yangisi
+     * berilmasa, foydalanuvchi o'z parolini almashtirgani uchun o'zi
+     * tizimdan chiqib qolardi.
+     */
+    @Transactional
+    public Session renew(User user) {
+        return session(user, refreshTokenService.issue(user));
+    }
+
+    private Session session(User user, String refreshToken) {
+        return new Session(
                 jwtService.generateToken(user),
-                jwtService.expiresInSeconds(),
-                UserResponse.from(user, translator));
+                refreshToken,
+                AuthResponse.of(jwtService.expiresInSeconds(), UserResponse.from(user, translator)));
     }
 
     private String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+    /**
+     * Ochilgan seans: cookie ga joylanadigan ikkita token va mijozga
+     * qaytariladigan javob tanasi.
+     */
+    public record Session(String accessToken, String refreshToken, AuthResponse body) {
     }
 }

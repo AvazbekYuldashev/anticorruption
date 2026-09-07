@@ -42,7 +42,6 @@ const QuizDetailsPage = lazy(() =>
 );
 const StatsPage = lazy(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })));
 const LoginPage = lazy(() => import('./pages/AuthPages').then((m) => ({ default: m.LoginPage })));
-const SignUpPage = lazy(() => import('./pages/AuthPages').then((m) => ({ default: m.SignUpPage })));
 const MyComplaintsPage = lazy(() =>
   import('./pages/MyComplaintsPage').then((m) => ({ default: m.MyComplaintsPage })),
 );
@@ -83,7 +82,6 @@ export function App() {
         <Route path="tests/:id" element={<QuizDetailsPage />} />
         <Route path="stats" element={<StatsPage />} />
         <Route path="login" element={<LoginPage />} />
-        <Route path="signup" element={<SignUpPage />} />
 
         {/* Murojaatlar reyestri - faqat xodimlar uchun */}
         <Route element={<ProtectedRoute require="staff" />}>

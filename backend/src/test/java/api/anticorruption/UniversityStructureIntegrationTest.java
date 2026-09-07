@@ -177,7 +177,7 @@ class UniversityStructureIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Moderator fakultet qo'sha olmaydi - bu faqat administrator ishi")
     void onlyAdminCanManageStructure() throws Exception {
-        String citizenToken = registerAndLogin("Oddiy Foydalanuvchi", "tuzilma@test.uz", "Tuzilma12345!");
+        String citizenToken = createUserAndLogin("Oddiy Foydalanuvchi", "tuzilma@test.uz", "Tuzilma12345!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/admin/faculties"), """

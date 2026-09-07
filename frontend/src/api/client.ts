@@ -1,8 +1,17 @@
 import i18next from 'i18next';
-import { getToken, notifyUnauthorized } from '../lib/session';
+import { CSRF_HEADER, notifyUnauthorized, readCsrfToken } from '../lib/session';
 import type { ApiErrorBody } from './types';
 
 const BASE_URL = '/api/v1';
+
+/**
+ * Seansning o'zi bilan bog'liq yo'llar.
+ *
+ * <p>Ular 401 qaytarganda seansni yangilashga urinish ma'nosiz: aynan
+ * yangilashning o'zi muvaffaqiyatsiz bo'lgan. Bu ro'yxatsiz cheksiz
+ * halqa hosil bo'lardi.
+ */
+const SESSION_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/csrf'];
 
 /**
  * Backend qaytargan xatolik.
@@ -58,9 +67,57 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   return `${BASE_URL}${path}?${params.toString()}`;
 }
 
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+/**
+ * Yozuv so'rovlari uchun CSRF sarlavhasi.
+ *
+ * <p>Cookie hali o'rnatilmagan bo'lishi mumkin - masalan foydalanuvchi
+ * to'g'ridan-to'g'ri kirish sahifasini ochgan va hech qanday so'rov
+ * bo'lmagan. Shunda avval uni so'rab olamiz.
+ */
+async function csrfHeader(method: string): Promise<Record<string, string>> {
+  if (method === 'GET' || method === 'HEAD') {
+    return {};
+  }
+
+  let token = readCsrfToken();
+  if (!token) {
+    await fetch(buildUrl('/auth/csrf'), { credentials: 'include' }).catch(() => undefined);
+    token = readCsrfToken();
+  }
+  return token ? { [CSRF_HEADER]: token } : {};
+}
+
+/**
+ * Seansni yangilash.
+ *
+ * <p>Bir vaqtda bir nechta so'rov 401 olishi mumkin (sahifada bir nechta
+ * so'rov parallel ketadi). Ularning har biri alohida yangilashga urinsa,
+ * tokenlar aylanishi bir-birini bekor qilib qo'yardi - shuning uchun
+ * hammasi bitta va'daga (promise) ulanadi.
+ */
+let refreshing: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = runRefresh().finally(() => {
+      refreshing = null;
+    });
+  }
+  return refreshing;
+}
+
+async function runRefresh(): Promise<boolean> {
+  try {
+    const response = await fetch(buildUrl('/auth/refresh'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: await csrfHeader('POST'),
+    });
+    return response.ok;
+  } catch {
+    // Tarmoq uzilgan bo'lsa ham seansni o'chirilgan deb hisoblamaymiz.
+    return false;
+  }
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -73,11 +130,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return contentType.includes('application/json')
       ? ((await response.json()) as T)
       : (undefined as T);
-  }
-
-  // 401 - token eskirgan yoki bekor qilingan: seansni tozalaymiz.
-  if (response.status === 401) {
-    notifyUnauthorized();
   }
 
   let body: ApiErrorBody | null = null;
@@ -99,54 +151,81 @@ interface RequestOptions {
   query?: Record<string, QueryValue>;
 }
 
-async function send<T>(
-  method: string,
+/**
+ * So'rovni yuboradi va kerak bo'lsa seansni yangilab, bir marta qaytadan urinadi.
+ *
+ * <p>Kirish tokeni qisqa muddatli (15 daqiqa), shuning uchun 401 odatiy
+ * hol - u "chiqib ketdingiz" degani emas. Yangilash tokeni hali amal
+ * qilsa, foydalanuvchi buni umuman sezmaydi.
+ */
+async function request<T>(
   path: string,
-  body?: unknown,
+  build: () => Promise<RequestInit>,
   options?: RequestOptions,
 ): Promise<T> {
-  const response = await fetch(buildUrl(path, options?.query), {
-    method,
-    headers: {
-      ...authHeaders(),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const url = buildUrl(path, options?.query);
+
+  let response = await fetch(url, await build());
+
+  if (response.status === 401 && !SESSION_PATHS.includes(path)) {
+    if (await refreshSession()) {
+      response = await fetch(url, await build());
+    }
+    if (response.status === 401) {
+      notifyUnauthorized();
+    }
+  }
 
   return handleResponse<T>(response);
 }
 
+function jsonInit(method: string, body?: unknown): () => Promise<RequestInit> {
+  return async () => ({
+    method,
+    credentials: 'include',
+    headers: {
+      ...(await csrfHeader(method)),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/**
+ * Fayl yuborish uchun so'rov.
+ *
+ * <p>`Content-Type` ataylab qo'yilmaydi: uni brauzer FormData uchun
+ * `boundary` bilan birga o'zi to'g'ri yozadi.
+ */
+function formInit(form: FormData): () => Promise<RequestInit> {
+  return async () => ({
+    method: 'POST',
+    credentials: 'include',
+    headers: await csrfHeader('POST'),
+    body: form,
+  });
+}
+
 export const api = {
-  get: <T>(path: string, options?: RequestOptions) => send<T>('GET', path, undefined, options),
+  get: <T>(path: string, options?: RequestOptions) =>
+    request<T>(path, jsonInit('GET'), options),
 
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    send<T>('POST', path, body, options),
+    request<T>(path, jsonInit('POST', body), options),
 
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    send<T>('PUT', path, body, options),
+    request<T>(path, jsonInit('PUT', body), options),
 
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    send<T>('PATCH', path, body, options),
+    request<T>(path, jsonInit('PATCH', body), options),
 
   delete: <T>(path: string, options?: RequestOptions) =>
-    send<T>('DELETE', path, undefined, options),
+    request<T>(path, jsonInit('DELETE'), options),
 
-  /**
-   * Fayl yuklash. `Content-Type` ataylab qo'yilmaydi: uni brauzer
-   * FormData uchun `boundary` bilan birga o'zi to'g'ri yozadi.
-   */
-  upload: async <T>(path: string, file: File, fieldName = 'file'): Promise<T> => {
+  upload: <T>(path: string, file: File, fieldName = 'file'): Promise<T> => {
     const form = new FormData();
     form.append(fieldName, file);
-
-    const response = await fetch(buildUrl(path), {
-      method: 'POST',
-      headers: authHeaders(),
-      body: form,
-    });
-
-    return handleResponse<T>(response);
+    return request<T>(path, formInit(form));
   },
 
   /**
@@ -157,18 +236,11 @@ export const api = {
    * tanlangani bejiz emas: shunda serverda ham hammasi bir tranzaksiyada
    * saqlanadi va chegara tekshiruvi butun to'plamga nisbatan bajariladi.
    */
-  uploadMany: async <T>(path: string, files: File[], fieldName = 'files'): Promise<T> => {
+  uploadMany: <T>(path: string, files: File[], fieldName = 'files'): Promise<T> => {
     const form = new FormData();
     for (const file of files) {
       form.append(fieldName, file);
     }
-
-    const response = await fetch(buildUrl(path), {
-      method: 'POST',
-      headers: authHeaders(),
-      body: form,
-    });
-
-    return handleResponse<T>(response);
+    return request<T>(path, formInit(form));
   },
 };

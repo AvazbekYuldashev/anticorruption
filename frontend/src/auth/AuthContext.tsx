@@ -1,16 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { authApi, type LoginPayload, type RegisterPayload } from '../api/auth';
+import { authApi, type LoginPayload } from '../api/auth';
 import type { UserResponse } from '../api/types';
-import { clearToken, getToken, onUnauthorized, setToken } from '../lib/session';
+import { forgetSession, hasSessionHint, onUnauthorized, rememberSession } from '../lib/session';
 
 interface AuthState {
   user: UserResponse | null;
   /** Boshlang'ich tekshiruv tugamaguncha true - shu paytda yo'nalish qarori qabul qilinmaydi. */
   initializing: boolean;
   login: (payload: LoginPayload) => Promise<UserResponse>;
-  register: (payload: RegisterPayload) => Promise<UserResponse>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  /** Profil o'zgargandan keyin joriy foydalanuvchini qaytadan o'qiydi. */
+  refresh: () => Promise<void>;
   isStaff: boolean;
   isAdmin: boolean;
 }
@@ -21,13 +22,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [initializing, setInitializing] = useState(true);
 
-  const logout = useCallback(() => {
-    clearToken();
+  /*
+   * Chiqish serverda ham bajarilishi kerak: yangilash tokeni bazada
+   * qoladi va faqat shu chaqiruv uni bekor qiladi. Tarmoq uzilgan bo'lsa
+   * ham interfeys chiqib ketadi - keyingi so'rovda cookie baribir
+   * yaroqsiz bo'ladi.
+   */
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      /* server javob bermasa ham mahalliy holatni tozalaymiz */
+    }
+    forgetSession();
     setUser(null);
   }, []);
 
   /*
-   * Token eskirsa API mijozi shu funksiyani chaqiradi. Shu tufayli
+   * Seans tugaganda API mijozi shu funksiyani chaqiradi. Shu tufayli
    * foydalanuvchi 401 olgan zahoti interfeys ham "chiqib ketgan"
    * holatiga o'tadi - eski ma'lumot ekranda qolib qolmaydi.
    */
@@ -36,13 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /*
-   * Sahifa yangilanganda seansni tiklaymiz: token bor bo'lsa, u kimga
-   * tegishli ekanini backend'dan so'raymiz. Foydalanuvchi ma'lumotini
-   * localStorage'da saqlash mumkin edi, lekin u eskirib qolardi
-   * (masalan roli o'zgargan bo'lsa).
+   * Sahifa yangilanganda seansni tiklaymiz. Tokenga bu yerda qaray
+   * olmaymiz - u HttpOnly cookie'da. Shuning uchun oddiy belgiga
+   * qaraymiz: u bo'lmasa foydalanuvchi mehmon va API ga umuman
+   * murojaat qilinmaydi.
+   *
+   * Kirish tokeni eskirgan bo'lsa `/me` 401 qaytaradi va API mijozi
+   * seansni o'zi yangilab, so'rovni qaytaradi - bu yerda alohida
+   * ish qilish shart emas.
    */
   useEffect(() => {
-    if (!getToken()) {
+    if (!hasSessionHint()) {
       setInitializing(false);
       return;
     }
@@ -54,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setUser(loaded);
       })
       .catch(() => {
-        clearToken();
+        forgetSession();
       })
       .finally(() => {
         if (!cancelled) setInitializing(false);
@@ -67,16 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginPayload) => {
     const response = await authApi.login(payload);
-    setToken(response.accessToken);
+    rememberSession();
     setUser(response.user);
     return response.user;
   }, []);
 
-  const register = useCallback(async (payload: RegisterPayload) => {
-    const response = await authApi.register(payload);
-    setToken(response.accessToken);
-    setUser(response.user);
-    return response.user;
+  const refresh = useCallback(async () => {
+    if (!hasSessionHint()) return;
+    setUser(await authApi.me());
   }, []);
 
   const value = useMemo<AuthState>(
@@ -84,12 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       initializing,
       login,
-      register,
       logout,
+      refresh,
       isStaff: user?.role === 'MODERATOR' || user?.role === 'ADMIN',
       isAdmin: user?.role === 'ADMIN',
     }),
-    [user, initializing, login, register, logout],
+    [user, initializing, login, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

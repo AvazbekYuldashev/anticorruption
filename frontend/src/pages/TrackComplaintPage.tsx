@@ -7,11 +7,18 @@ import { Button, Card, ErrorBox, Field, Input, PageHeader, Spinner, StatusBadge 
 import { errorMessage } from '../lib/errors';
 import { formatDateTime } from '../lib/format';
 
+/*
+  Yorliq va qiymat ataylab bir-biriga o'xshamaydi: yorliq kichik, katta harfli
+  va oqargan, qiymat esa kattaroq va to'q. Ikkalasi bir xil o'lchamda bo'lsa
+  ko'z ro'yxatni bir tekis matn deb o'qiydi va kerakli qatorni izlab qoladi.
+*/
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex flex-col gap-0.5 border-b border-slate-100 py-2.5 sm:flex-row sm:gap-4">
-      <dt className="w-48 shrink-0 text-sm text-slate-500">{label}</dt>
+    <div className="flex flex-col gap-0.5 border-b border-slate-100 py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-4">
+      <dt className="w-48 shrink-0 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+        {label}
+      </dt>
       <dd className="text-sm text-slate-800">{value}</dd>
     </div>
   );

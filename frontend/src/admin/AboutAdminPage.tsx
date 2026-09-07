@@ -8,11 +8,15 @@ import {
   IconButton,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import { contentApi, type SaveAboutPayload } from '../api/content';
+import { LANGUAGES } from '../i18n';
 import { AdminPage, MutationError, QueryState } from './common';
+import { RichTextField } from './RichTextField';
 
 /**
  * Muharrirdagi vazifa bandi.
@@ -41,6 +45,47 @@ interface AboutForm {
   goal: string;
 }
 
+/** Asosiy til: uning matni tarjima jadvalida emas, asosiy yozuvda turadi. */
+const BASE_LANGUAGE = 'uz';
+
+function toForm(
+  title: string | null | undefined,
+  body: string | null | undefined,
+  tasksTitle: string | null | undefined,
+  tasks: string[],
+  goal: string | null | undefined,
+): AboutForm {
+  return {
+    title: title ?? '',
+    body: body ?? '',
+    tasksTitle: tasksTitle ?? '',
+    tasks: tasks.length > 0 ? tasks.map((task) => newTask(task)) : [newTask()],
+    goal: goal ?? '',
+  };
+}
+
+function serialize(form: AboutForm) {
+  return {
+    title: form.title,
+    body: form.body,
+    tasksTitle: form.tasksTitle,
+    tasks: form.tasks.map((task) => task.text).filter((text) => text.trim() !== ''),
+    goal: form.goal,
+  };
+}
+
+/** Bo'sh varaq serverga yuborilmaydi - u yerda ham saqlanmaydi. */
+function isEmpty(form: AboutForm): boolean {
+  const value = serialize(form);
+  return (
+    value.title.trim() === '' &&
+    value.body.trim() === '' &&
+    value.tasksTitle.trim() === '' &&
+    value.goal.trim() === '' &&
+    value.tasks.length === 0
+  );
+}
+
 /**
  * "Bo'lim haqida" sahifasini tahrirlaydi.
  *
@@ -52,30 +97,53 @@ export function AboutAdminPage() {
   const queryClient = useQueryClient();
 
   const query = useQuery({ queryKey: ['admin', 'about'], queryFn: contentApi.adminAbout });
-  const [form, setForm] = useState<AboutForm | null>(null);
 
-  // Server javobi kelgach forma bir marta to'ldiriladi; keyingi tahrirlar
+  /*
+   * Har bir til uchun alohida forma. Asosiy til ("uz") javobning yuqori
+   * qismidan, qolganlari `translations` ro'yxatidan to'ldiriladi.
+   */
+  const [forms, setForms] = useState<Record<string, AboutForm> | null>(null);
+  const [active, setActive] = useState<string>(BASE_LANGUAGE);
+
+  // Server javobi kelgach formalar bir marta to'ldiriladi; keyingi tahrirlar
   // foydalanuvchinikidir va ustidan yozilmasligi kerak.
   useEffect(() => {
-    if (query.data && form === null) {
-      setForm({
-        title: query.data.title ?? '',
-        body: query.data.body ?? '',
-        tasksTitle: query.data.tasksTitle ?? '',
-        tasks: query.data.tasks.length > 0 ? query.data.tasks.map((task) => newTask(task)) : [newTask()],
-        goal: query.data.goal ?? '',
-      });
+    if (!query.data || forms !== null) return;
+    const data = query.data;
+
+    const next: Record<string, AboutForm> = {
+      [BASE_LANGUAGE]: toForm(data.title, data.body, data.tasksTitle, data.tasks, data.goal),
+    };
+
+    for (const language of LANGUAGES) {
+      if (language.code === BASE_LANGUAGE) continue;
+      const translation = data.translations.find((item) => item.languageCode === language.code);
+      next[language.code] = toForm(
+        translation?.title,
+        translation?.body,
+        translation?.tasksTitle,
+        translation?.tasks ?? [],
+        translation?.goal,
+      );
     }
-  }, [query.data, form]);
+
+    setForms(next);
+  }, [query.data, forms]);
+
+  const form = forms?.[active] ?? null;
 
   const save = useMutation({
     mutationFn: () => {
+      const all = forms!;
+
       const payload: SaveAboutPayload = {
-        title: form!.title,
-        body: form!.body,
-        tasksTitle: form!.tasksTitle,
-        tasks: form!.tasks.map((task) => task.text),
-        goal: form!.goal,
+        ...serialize(all[BASE_LANGUAGE]),
+        translations: LANGUAGES.filter((language) => language.code !== BASE_LANGUAGE)
+          .filter((language) => !isEmpty(all[language.code]))
+          .map((language) => ({
+            languageCode: language.code,
+            ...serialize(all[language.code]),
+          })),
       };
       return contentApi.saveAbout(payload);
     },
@@ -86,7 +154,11 @@ export function AboutAdminPage() {
   });
 
   function patch(changes: Partial<AboutForm>) {
-    setForm((current) => (current === null ? current : { ...current, ...changes }));
+    setForms((current) =>
+      current === null
+        ? current
+        : { ...current, [active]: { ...current[active], ...changes } },
+    );
   }
 
   function updateTask(index: number, text: string) {
@@ -111,6 +183,28 @@ export function AboutAdminPage() {
             )}
             <MutationError error={save.error} />
 
+            {/*
+              Til varaqalari. Barcha tillar bitta "Saqlash" bilan yuboriladi -
+              muharrir varaqlar orasida yurib, oxirida bir marta saqlaydi.
+            */}
+            <Box>
+              <Tabs
+                value={active}
+                onChange={(_, value: string) => setActive(value)}
+                variant="scrollable"
+                scrollButtons="auto"
+              >
+                {LANGUAGES.map((language) => (
+                  <Tab key={language.code} value={language.code} label={language.name} />
+                ))}
+              </Tabs>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                {active === BASE_LANGUAGE
+                  ? t('admin.baseLanguageHint')
+                  : t('admin.translationFallbackHint')}
+              </Typography>
+            </Box>
+
             <TextField
               label={t('admin.aboutFieldTitle')}
               value={form.title}
@@ -118,14 +212,12 @@ export function AboutAdminPage() {
               fullWidth
             />
 
-            <TextField
+            <RichTextField
               label={t('admin.aboutFieldBody')}
               value={form.body}
-              onChange={(event) => patch({ body: event.target.value })}
+              onChange={(body) => patch({ body })}
               helperText={t('admin.aboutBodyHint')}
-              multiline
               minRows={8}
-              fullWidth
             />
 
             <Box>
@@ -192,14 +284,12 @@ export function AboutAdminPage() {
               </Button>
             </Box>
 
-            <TextField
+            <RichTextField
               label={t('admin.aboutFieldGoal')}
               value={form.goal}
-              onChange={(event) => patch({ goal: event.target.value })}
+              onChange={(goal) => patch({ goal })}
               helperText={t('admin.aboutGoalHint')}
-              multiline
               minRows={3}
-              fullWidth
             />
 
             <Box>

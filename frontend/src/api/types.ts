@@ -96,9 +96,14 @@ export interface UserResponse {
   createdAt: string;
 }
 
+/**
+ * Kirish javobi.
+ *
+ * <p>Token bu yerda yo'q: u HttpOnly cookie orqali keladi va JavaScript
+ * unga kira olmaydi.
+ */
 export interface AuthResponse {
-  accessToken: string;
-  tokenType: string;
+  /** Kirish tokeni necha sekunddan keyin eskiradi. */
   expiresIn: number;
   user: UserResponse;
 }
@@ -331,6 +336,8 @@ export interface NewsBlockResponse {
 export interface NewsSummaryResponse {
   id: number;
   slug: string;
+  /** Yangilik qaysi tilda yozilgan: "uz", "uz-cyrl", "ru" yoki "en". */
+  languageCode: string;
   title: string;
   summary: string | null;
   coverImageUrl: string | null;
@@ -341,16 +348,44 @@ export interface NewsSummaryResponse {
   imageCount: number;
 }
 
+/** Shu maqolaning boshqa tildagi nusxasiga havola. */
+export interface NewsTranslationResponse {
+  id: number;
+  languageCode: string;
+  /** Tilning o'z tilidagi nomi: "Русский", "English". */
+  languageName: string;
+  slug: string;
+  title: string;
+  published: boolean;
+}
+
 export interface NewsDetailResponse extends NewsSummaryResponse {
   /** Matn bloklarining birlashtirilgan nusxasi - qidiruv natijalari uchun. */
   body: string;
+  languageName: string;
   blocks: NewsBlockResponse[];
+  /** O'zidan tashqari barcha til nusxalari. */
+  translations: NewsTranslationResponse[];
   createdAt: string;
   updatedAt: string;
 }
 
+/** "Bo'lim haqida" sahifasining bir tildagi matni. */
+export interface AboutTranslation {
+  languageCode: string;
+  /** Tilning o'z tilidagi nomi - faqat javobda keladi. */
+  languageName?: string;
+  title: string | null;
+  body: string | null;
+  tasksTitle: string | null;
+  tasks: string[];
+  goal: string | null;
+}
+
 /** "Bo'lim haqida" sahifasi - saytda bitta nusxada. */
 export interface AboutSectionResponse {
+  /** Javobdagi matn qaysi tilda. */
+  languageCode: string;
   title: string | null;
   body: string | null;
   tasksTitle: string | null;
@@ -358,11 +393,26 @@ export interface AboutSectionResponse {
   goal: string | null;
   /** Sahifa to'ldirilganmi: bo'sh bo'lsa menyuda ko'rsatilmaydi. */
   filled: boolean;
+  /** Faqat admin javobida to'ldiriladi; saytda bo'sh. */
+  translations: AboutTranslation[];
   updatedAt: string | null;
+}
+
+/** Xodim ma'lumotlarining bir tildagi varianti. */
+export interface StaffTranslation {
+  languageCode: string;
+  languageName?: string;
+  fullName: string | null;
+  position: string | null;
+  academicDegree: string | null;
+  biography: string | null;
+  receptionHours: string | null;
 }
 
 export interface StaffMemberResponse {
   id: number;
+  /** Javobdagi matn qaysi tilda. */
+  languageCode: string;
   fullName: string;
   position: string;
   academicDegree: string | null;
@@ -373,6 +423,8 @@ export interface StaffMemberResponse {
   photoUrl: string | null;
   displayOrder: number;
   active: boolean;
+  /** Faqat admin javobida to'ldiriladi; saytda bo'sh. */
+  translations: StaffTranslation[];
 }
 
 // ---------------------------------------------------------------- so'rovnoma

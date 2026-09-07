@@ -25,6 +25,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfException;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -40,9 +44,9 @@ import java.util.Locale;
 /**
  * Stateless JWT autentifikatsiyasi.
  *
- * <p>Ochiq (token talab qilinmaydigan) yo'llar: ro'yxatdan o'tish/kirish,
- * murojaat yuborish, tracking kod bo'yicha holatni tekshirish, ma'lumotnomalar,
- * ommaviy statistika va Swagger hujjatlari.
+ * <p>Ochiq (token talab qilinmaydigan) yo'llar: tizimga kirish, murojaat
+ * yuborish, tracking kod bo'yicha holatni tekshirish, ma'lumotnomalar,
+ * ommaviy statistika, saytning ochiq bo'limlari va Swagger hujjatlari.
  */
 @Configuration
 @EnableWebSecurity
@@ -57,10 +61,34 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
+    /** CSRF cookie'si ham seans cookie'lari bilan bir xil rejimda bo'lishi kerak. */
+    @Value("${app.auth.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${app.auth.same-site:Lax}")
+    private String cookieSameSite;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                /*
+                 * CSRF himoyasi. Token cookie'da HttpOnly'siz beriladi - uni
+                 * o'qish xavfli emas, chunki hujumchi sahifasi boshqa manzilda
+                 * turadi va begona cookie'ni o'qiy olmaydi. Interfeys uni
+                 * X-XSRF-TOKEN sarlavhasida qaytaradi; brauzer bunday
+                 * sarlavhani cross-site so'rovga qo'sha olmaydi.
+                 *
+                 * Anonim ochiq yozuvlar (murojaat yuborish, fayl biriktirish,
+                 * ovoz berish) ro'yxatdan chiqarilgan: ular hech qanday seansga
+                 * tayanmaydi, demak CSRF ularga ma'no bermaydi.
+                 */
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository())
+                        .csrfTokenRequestHandler(csrfTokenRequestHandler())
+                        .ignoringRequestMatchers(
+                                "/api/v1/complaints",
+                                "/api/v1/complaints/track/**",
+                                "/api/v1/polls/*/vote"))
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -90,10 +118,17 @@ public class SecurityConfig {
                                         MessageKeys.ERROR_AUTH_REQUIRED))
                         .accessDeniedHandler((request, response, ex) ->
                                 writeError(request, response, HttpStatus.FORBIDDEN,
-                                        MessageKeys.ERROR_ACCESS_DENIED)))
+                                        ex instanceof CsrfException
+                                                ? MessageKeys.ERROR_CSRF_INVALID
+                                                : MessageKeys.ERROR_ACCESS_DENIED)))
                 .authorizeHttpRequests(auth -> auth
                         // --- Ochiq yollar ---
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Faqat kirish ochiq: ro'yxatdan o'tish yo'q, hisoblarni admin yaratadi.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+                        // Yangilash va chiqish eskirgan kirish tokeni bilan ham ishlashi kerak.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/complaints").permitAll()
                         .requestMatchers("/api/v1/complaints/track/**").permitAll()
                         .requestMatchers("/api/v1/reference/**").permitAll()
@@ -126,6 +161,45 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * CSRF tokeni cookie'si.
+     *
+     * <p>{@code withHttpOnlyFalse}: bu cookie'ni interfeys o'qishi SHART -
+     * u tokenni sarlavhaga ko'chirib qo'yadi. Seans tokenlaridan farqli
+     * o'laroq, bu qiymatning o'g'irlanishi hujumchiga hech narsa bermaydi:
+     * u sarlavhasiz, faqat cookie bilan ham allaqachon so'rov yubora olardi.
+     */
+    @Bean
+    public CsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repository = new CookieCsrfTokenRepository();
+        /*
+         * Barcha xossalar bitta joyda beriladi: `withHttpOnlyFalse()` va
+         * alohida setter'lar Spring Security versiyalari orasida o'zgarib
+         * turadi, cookie sozlagichi esa har doim oxirida qo'llanadi.
+         */
+        repository.setCookieCustomizer(cookie -> cookie
+                .httpOnly(false)
+                .path("/")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite));
+        return repository;
+    }
+
+    /**
+     * Tokenni har bir so'rovda hosil qiladi.
+     *
+     * <p>{@code setCsrfRequestAttributeName(null)} - kechiktirilgan (deferred)
+     * rejimni o'chiradi. Aks holda token faqat kimdir uni so'raganda
+     * hisoblanadi va XSRF-TOKEN cookie'si birinchi so'rovlarda umuman
+     * o'rnatilmay qolardi.
+     */
+    @Bean
+    public CsrfTokenRequestAttributeHandler csrfTokenRequestHandler() {
+        CsrfTokenRequestAttributeHandler handler = new CsrfTokenRequestAttributeHandler();
+        handler.setCsrfRequestAttributeName(null);
+        return handler;
     }
 
     @Bean

@@ -70,6 +70,10 @@ export const complaintsApi = {
   updateStatus: (id: number, body: { status: string; note?: string; officialResponse?: string }) =>
     api.patch<ComplaintResponse>(`/admin/complaints/${id}/status`, body),
 
+  /** Javob yozish - holatni o'zgartirmasdan (yopilgan murojaatga ham). */
+  saveResponse: (id: number, body: { officialResponse?: string; note?: string }) =>
+    api.patch<ComplaintResponse>(`/admin/complaints/${id}/response`, body),
+
   assign: (id: number, assigneeId: number | null) =>
     api.patch<ComplaintResponse>(`/admin/complaints/${id}/assign`, { assigneeId }),
 

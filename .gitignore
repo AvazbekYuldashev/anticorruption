@@ -1,10 +1,15 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# =============================================================================
+# Umumiy qoidalar. Backend va frontendning o'z .gitignore fayllari bor:
+#   backend/.gitignore   - Maven, yuklangan fayllar, mahalliy sozlamalar
+#   frontend/.gitignore  - node_modules, build natijasi
+# =============================================================================
 
-### STS ###
+### IDE ###
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode/
 .apt_generated
 .classpath
 .factorypath
@@ -13,28 +18,9 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+### OS ###
+.DS_Store
+Thumbs.db
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-
-### Loyihaga xos ###
-# Yuklangan dalil fayllari - bazada emas, diskda saqlanadi
-uploads/
-# Mahalliy sozlamalar (baza paroli, SMTP kaliti va h.k.)
-src/main/resources/application-local.properties
+### Maxfiy qiymatlar ###
 .env

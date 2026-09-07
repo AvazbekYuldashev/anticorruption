@@ -84,6 +84,26 @@ public class EmailService {
         send(to, text(MessageKeys.EMAIL_STATUS_SUBJECT, locale, trackingCode), body);
     }
 
+    /**
+     * Holat o'zgarmasdan yozilgan rasmiy javob haqida xabar qiladi.
+     *
+     * <p>{@link #sendStatusChanged} dan alohida: u xatda "oldingi holat ->
+     * yangi holat" deb yozadi, bu yerda esa holat o'zgarmagan - faqat javob
+     * qo'shilgan.
+     */
+    @Async
+    public void sendResponseAdded(String to, String languageCode, String trackingCode, String title,
+                                  String officialResponse) {
+        if (to == null || to.isBlank()) {
+            return;
+        }
+        Locale locale = AppLanguage.from(languageCode).getLocale();
+
+        send(to,
+                text(MessageKeys.EMAIL_RESPONSE_SUBJECT, locale, trackingCode),
+                text(MessageKeys.EMAIL_RESPONSE_BODY, locale, trackingCode, title, officialResponse, publicUrl));
+    }
+
     private String text(String code, Locale locale, Object... args) {
         return messageSource.getMessage(code, args, code, locale);
     }

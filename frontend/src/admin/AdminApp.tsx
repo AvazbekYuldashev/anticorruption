@@ -30,6 +30,7 @@ import { NewsAdminPage } from './NewsAdminPage';
 import { NewsDetailAdminPage } from './NewsDetailAdminPage';
 import { StaffAdminPage } from './StaffAdminPage';
 import { AboutAdminPage } from './AboutAdminPage';
+import { ProfilePage } from './ProfilePage';
 import { PollsAdminPage, QuizzesAdminPage } from './PollsAdminPage';
 
 const DRAWER_WIDTH = 240;
@@ -57,8 +58,11 @@ function useMenuItems() {
   const items = [
     { to: '/admin', label: t('admin.navDashboard'), end: true },
     { to: '/admin/complaints', label: t('admin.navComplaints') },
-    // Reyestr admin panelining tashqarisida, lekin faqat xodimlar ko'radi.
-    { to: '/register', label: t('nav.register') },
+    /*
+      Murojaatlar reyestri bu yerda yo'q: u admin panelining sahifasi emas,
+      saytning o'z sahifasi va xodimlarga asosiy menyudan ochiq. Ikkala joyda
+      turgani ortiqcha takror edi.
+    */
     { to: '/admin/news', label: t('admin.navNews') },
     { to: '/admin/staff', label: t('admin.navStaff') },
     { to: '/admin/about', label: t('admin.navAbout') },
@@ -173,7 +177,18 @@ export function AdminApp() {
                 <LanguageSwitcher compact />
               </Box>
 
-              <Typography variant="body2" color="text.secondary" noWrap>
+              {/* Ism - profil sahifasiga o'tish havolasi: login va parol shu yerda o'zgaradi. */}
+              <Typography
+                component={NavLink}
+                to="/admin/profile"
+                variant="body2"
+                noWrap
+                sx={{
+                  color: 'text.secondary',
+                  textDecoration: 'none',
+                  '&:hover': { color: 'primary.main' },
+                }}
+              >
                 {user?.fullName}
               </Typography>
               <Typography
@@ -232,6 +247,7 @@ export function AdminApp() {
               <Route path="news/:id" element={<NewsDetailAdminPage />} />
               <Route path="staff" element={<StaffAdminPage />} />
               <Route path="about" element={<AboutAdminPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="polls" element={<PollsAdminPage />} />
               <Route path="tests" element={<QuizzesAdminPage />} />
 

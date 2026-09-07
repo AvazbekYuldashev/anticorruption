@@ -21,6 +21,60 @@ export const RICH_TEXT_MARKS = {
   strike: '~~',
 } as const;
 
+/** Matn maydonida bajarilgan o'zgarish va undan keyingi tanlov. */
+export interface MarkupEdit {
+  text: string;
+  /** Muharrir kursorni shu oraliqqa qo'yadi. */
+  selection: [number, number];
+}
+
+/**
+ * Tanlangan matnni belgilar bilan o'raydi.
+ *
+ * <p>Hech narsa tanlanmagan bo'lsa namuna so'z qo'yiladi va o'sha tanlangan
+ * holda qoladi - foydalanuvchi darhol ustidan yozib ketaveradi.
+ *
+ * <p>Alohida funksiya: shu tufayli uni komponentsiz, to'g'ridan-to'g'ri
+ * sinab ko'rish mumkin.
+ */
+export function applyMark(
+  text: string,
+  start: number,
+  end: number,
+  mark: string,
+  sample: string,
+): MarkupEdit {
+  const selected = text.slice(start, end) || sample;
+
+  return {
+    text: text.slice(0, start) + mark + selected + mark + text.slice(end),
+    selection: [start + mark.length, start + mark.length + selected.length],
+  };
+}
+
+/**
+ * Tanlangan matnni havolaga aylantiradi.
+ *
+ * <p>Kursor manzil o'rniga qo'yiladi va o'rin egallovchi tanlangan bo'ladi:
+ * foydalanuvchi manzilni yopishtiradi-yu, ishi tugaydi.
+ */
+export function applyLink(
+  text: string,
+  start: number,
+  end: number,
+  sample: string,
+  placeholder: string,
+): MarkupEdit {
+  const selected = text.slice(start, end) || sample;
+  // "[" + matn + "](" - manzil shundan keyin boshlanadi.
+  const hrefStart = start + selected.length + 3;
+
+  return {
+    text: `${text.slice(0, start)}[${selected}](${placeholder})${text.slice(end)}`,
+    selection: [hrefStart, hrefStart + placeholder.length],
+  };
+}
+
 /**
  * Eng yaqin formatlash belgisini topadi.
  *
@@ -87,7 +141,15 @@ function element(match: RegExpExecArray, key: string): ReactNode {
   );
 }
 
-function safeHref(raw: string): string | null {
+/**
+ * Havola manzilini tekshiradi.
+ *
+ * <p>Faqat sanab o'tilgan sxemalar o'tadi. `javascript:` va `data:` kabi
+ * manzillar havola bo'lmaydi - ular bosilganda sahifada kod bajarilardi.
+ * Ro'yxat "taqiqlanganlar" emas, "ruxsat etilganlar": yangi xavfli sxema
+ * paydo bo'lsa ham u avtomatik ravishda tashqarida qoladi.
+ */
+export function safeHref(raw: string): string | null {
   try {
     const url = new URL(raw, window.location.origin);
     return SAFE_SCHEMES.includes(url.protocol) ? url.href : null;

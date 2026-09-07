@@ -40,11 +40,37 @@ const ALLOWED_TRANSITIONS: Record<ComplaintStatus, ComplaintStatus[]> = {
   REJECTED: [],
 };
 
+/*
+  Yorliq va qiymat ataylab bir-biriga o'xshamaydi: yorliq kichik, katta harfli
+  va oqargan, qiymat esa kattaroq va to'q. Ikkalasi bir xil o'lchamda bo'lsa
+  ko'z ro'yxatni bir tekis matn deb o'qiydi va kerakli qatorni izlab qoladi.
+  O'lchamlar farqli bo'lgani uchun qatorlar tag chiziq (baseline) bo'yicha
+  tekislanadi - aks holda ular bir-biriga nisbatan siljib turadi.
+*/
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ sm: 2 }} sx={{ py: 1 }}>
-      <Typography variant="body2" color="text.secondary" sx={{ width: 200, flexShrink: 0 }}>
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      spacing={{ xs: 0.25, sm: 2 }}
+      sx={{
+        py: 1.25,
+        alignItems: { sm: 'baseline' },
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          width: 200,
+          flexShrink: 0,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+        }}
+      >
         {label}
       </Typography>
       <Typography variant="body2">{value}</Typography>
@@ -175,11 +201,11 @@ function ComplaintOverview({ complaint }: { complaint: ComplaintResponse }) {
         </Typography>
         {complaint.anonymous ? (
           <Typography variant="body2" color="text.secondary">
-            {t('submit.anonymousHint')}
+            {t('admin.anonymousInfo')}
           </Typography>
         ) : (
           <>
-            <Row label={t('submit.fieldReporterType')} value={complaint.reporterTypeLabel} />
+            <Row label={t('admin.reporterType')} value={complaint.reporterTypeLabel} />
             <Row label={t('submit.fieldReporterName')} value={complaint.reporterName} />
             <Row label={t('submit.fieldReporterEmail')} value={complaint.reporterEmail} />
             <Row label={t('submit.fieldReporterPhone')} value={complaint.reporterPhone} />
@@ -193,7 +219,7 @@ function ComplaintOverview({ complaint }: { complaint: ComplaintResponse }) {
         )}
         {/* Anonim murojaatda ham maqom ko'rsatiladi - u shaxsni oshkor qilmaydi. */}
         {complaint.anonymous && (
-          <Row label={t('submit.fieldReporterType')} value={complaint.reporterTypeLabel} />
+          <Row label={t('admin.reporterType')} value={complaint.reporterTypeLabel} />
         )}
 
         {complaint.attachments.length > 0 && (
@@ -238,13 +264,33 @@ function StatusForm({
   const [note, setNote] = useState('');
   const [officialResponse, setOfficialResponse] = useState(complaint.officialResponse ?? '');
 
+  const savedResponse = (complaint.officialResponse ?? '').trim();
+
+  /*
+   * Javob "o'zgardi" deb faqat bo'sh bo'lmagan yangi matn hisoblanadi.
+   * Maydonni tozalab saqlash - javobni o'chirish emas: murojaatchiga bir marta
+   * yuborilgan rasmiy javob keyin sassiz g'oyib bo'lmasligi kerak.
+   */
+  const responseChanged =
+    officialResponse.trim().length > 0 && officialResponse.trim() !== savedResponse;
+  const noteFilled = note.trim().length > 0;
+
   const mutation = useMutation({
+    /*
+     * Holat tanlanmagan bo'lsa boshqa yo'lga murojaat qilinadi: u holatga
+     * tegmaydi va shu sababli yopilgan murojaatda ham ishlaydi.
+     */
     mutationFn: () =>
-      complaintsApi.updateStatus(complaint.id, {
-        status,
-        note: note.trim() || undefined,
-        officialResponse: officialResponse.trim() || undefined,
-      }),
+      status
+        ? complaintsApi.updateStatus(complaint.id, {
+            status,
+            note: note.trim() || undefined,
+            officialResponse: officialResponse.trim() || undefined,
+          })
+        : complaintsApi.saveResponse(complaint.id, {
+            officialResponse: responseChanged ? officialResponse.trim() : undefined,
+            note: note.trim() || undefined,
+          }),
     onSuccess: () => {
       setStatus('');
       setNote('');
@@ -256,69 +302,79 @@ function StatusForm({
     allowed.includes(option.value as ComplaintStatus),
   );
 
+  const canSubmit = Boolean(status) || responseChanged || noteFilled;
+
   return (
     <Card variant="outlined">
       <CardContent>
         <Typography variant="subtitle2" sx={{ mb: 2 }}>
-          {t('admin.changeStatus')}
+          {t('admin.reviewTitle')}
         </Typography>
 
-        {allowed.length === 0 ? (
-          <Alert severity="info">{t('admin.noTransitions')}</Alert>
-        ) : (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              mutation.mutate();
-            }}
-          >
-            <Stack spacing={2.5}>
+        {allowed.length === 0 && (
+          <Alert severity="info" sx={{ mb: 2.5 }}>
+            {t('admin.closedCanStillReply')}
+          </Alert>
+        )}
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}
+        >
+          <Stack spacing={2.5}>
+            {/*
+              Yopilgan murojaatda o'tish qolmaydi - ro'yxat bo'sh bo'lsa
+              ko'rsatilmaydi ham, ammo javob maydonlari ochiq qoladi.
+            */}
+            {statusOptions.length > 0 && (
               <TextField
                 select
                 size="small"
                 label={t('admin.newStatus')}
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                required
                 fullWidth
               >
+                <MenuItem value="">{t('admin.keepStatus')}</MenuItem>
                 {statusOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
                   </MenuItem>
                 ))}
               </TextField>
+            )}
 
-              <TextField
-                size="small"
-                label={t('admin.internalNote')}
-                helperText={t('admin.internalNoteHint')}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                multiline
-                rows={2}
-                fullWidth
-              />
+            <TextField
+              size="small"
+              label={t('admin.internalNote')}
+              helperText={t('admin.internalNoteHint')}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              multiline
+              rows={2}
+              fullWidth
+            />
 
-              <TextField
-                size="small"
-                label={t('admin.officialResponse')}
-                helperText={t('admin.officialResponseHint')}
-                value={officialResponse}
-                onChange={(event) => setOfficialResponse(event.target.value)}
-                multiline
-                rows={4}
-                fullWidth
-              />
+            <TextField
+              size="small"
+              label={t('admin.officialResponse')}
+              helperText={t('admin.officialResponseHint')}
+              value={officialResponse}
+              onChange={(event) => setOfficialResponse(event.target.value)}
+              multiline
+              rows={4}
+              fullWidth
+            />
 
-              <Button type="submit" variant="contained" disabled={!status || mutation.isPending}>
-                {t('admin.applyStatus')}
-              </Button>
-            </Stack>
+            <Button type="submit" variant="contained" disabled={!canSubmit || mutation.isPending}>
+              {status ? t('admin.applyStatus') : t('admin.saveResponse')}
+            </Button>
+          </Stack>
 
-            <MutationError error={mutation.error} />
-          </form>
-        )}
+          <MutationError error={mutation.error} />
+        </form>
       </CardContent>
     </Card>
   );
@@ -458,7 +514,11 @@ function HistoryCard({ complaint }: { complaint: ComplaintResponse }) {
           {complaint.history.map((entry) => (
             <Box key={entry.id} sx={{ borderLeft: 2, borderColor: 'primary.light', pl: 2 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                {entry.oldStatusLabel && (
+                {/*
+                  Holat o'zgarmagan yozuv (javob yozilgani) da "X → X" deb
+                  ko'rsatish ma'nosiz - o'q faqat haqiqiy o'tishda chiqadi.
+                */}
+                {entry.oldStatusLabel && entry.oldStatus !== entry.newStatus && (
                   <Typography variant="caption" color="text.secondary">
                     {entry.oldStatusLabel} →
                   </Typography>

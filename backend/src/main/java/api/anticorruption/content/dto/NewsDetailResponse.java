@@ -9,12 +9,16 @@ import java.util.List;
  * Yangilikning to'liq ko'rinishi.
  *
  * @param blocks mazmun: matn va rasm bloklari kiritilgan tartibda
- * @param body   matn bloklarining birlashtirilgan nusxasi - qidiruv natijasida
- *               qisqa parcha ko'rsatish kabi holatlar uchun qulay
+ * @param body         matn bloklarining birlashtirilgan nusxasi - qidiruv natijasida
+ *                     qisqa parcha ko'rsatish kabi holatlar uchun qulay
+ * @param translations shu maqolaning boshqa tillardagi nusxalari; til tanlash
+ *                     tugmasi shu ro'yxatga qarab to'g'ri sahifaga olib boradi
  */
 public record NewsDetailResponse(
         Long id,
         String slug,
+        String languageCode,
+        String languageName,
         String title,
         String summary,
         String body,
@@ -23,11 +27,16 @@ public record NewsDetailResponse(
         Instant publishedAt,
         long viewCount,
         List<NewsBlockResponse> blocks,
+        List<NewsTranslationResponse> translations,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static NewsDetailResponse from(News news) {
-        return from(news, news.getViewCount());
+        return from(news, news.getViewCount(), List.of());
+    }
+
+    public static NewsDetailResponse from(News news, List<NewsTranslationResponse> translations) {
+        return from(news, news.getViewCount(), translations);
     }
 
     /**
@@ -39,10 +48,13 @@ public record NewsDetailResponse(
      *
      * <p>Faqat tranzaksiya ichida chaqirilishi kerak - bloklar lazy yuklanadi.
      */
-    public static NewsDetailResponse from(News news, long viewCount) {
+    public static NewsDetailResponse from(News news, long viewCount,
+                                          List<NewsTranslationResponse> translations) {
         return new NewsDetailResponse(
                 news.getId(),
                 news.getSlug(),
+                news.getLanguage().getCode(),
+                news.getLanguage().getDisplayName(),
                 news.getTitle(),
                 news.getSummary(),
                 news.getBody(),
@@ -51,6 +63,7 @@ public record NewsDetailResponse(
                 news.getPublishedAt(),
                 viewCount,
                 news.getBlocks().stream().map(NewsBlockResponse::from).toList(),
+                translations,
                 news.getCreatedAt(),
                 news.getUpdatedAt());
     }

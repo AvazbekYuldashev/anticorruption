@@ -15,6 +15,14 @@ import java.util.Optional;
 
 public interface ComplaintRepository extends JpaRepository<Complaint, Long>, JpaSpecificationExecutor<Complaint> {
 
+    /**
+     * Foydalanuvchi biror murojaatga bog'langanmi.
+     *
+     * <p>Hisobni o'chirishdan oldin tekshiriladi: muallif yoki mas'ul xodim
+     * yo'qolsa murojaatlar tarixi buziladi.
+     */
+    boolean existsByAuthorIdOrAssigneeId(Long authorId, Long assigneeId);
+
     Optional<Complaint> findByTrackingCode(String trackingCode);
 
     boolean existsByTrackingCode(String trackingCode);

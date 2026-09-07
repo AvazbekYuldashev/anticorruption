@@ -1,5 +1,6 @@
 package api.anticorruption.content;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -8,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -69,6 +71,16 @@ public class AboutSection {
     /** Yakuniy xatboshi - bo'limning maqsadi. */
     @Column(columnDefinition = "text")
     private String goal;
+
+    /**
+     * Boshqa tillardagi matn.
+     *
+     * <p>Asosiy yozuvning o'zi o'zbekcha (asosiy til) matnni saqlaydi -
+     * shu tufayli tarjima qo'shilmagan sayt ham hech narsa yo'qotmaydi.
+     */
+    @OneToMany(mappedBy = "about", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<AboutSectionTranslation> translations = new ArrayList<>();
 
     @UpdateTimestamp
     @Column(name = "updated_at")

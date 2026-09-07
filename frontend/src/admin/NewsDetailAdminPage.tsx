@@ -9,11 +9,14 @@ import {
   Card,
   CardContent,
   Chip,
+  Divider,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { contentApi } from '../api/content';
+import { LANGUAGES } from '../i18n';
 import { formatDate, formatDateTime } from '../lib/format';
 import { AdminPage, ConfirmDialog, MutationError, QueryState } from './common';
 import {
@@ -39,6 +42,7 @@ export function NewsDetailAdminPage() {
 
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
+  const [language, setLanguage] = useState('uz');
   const [blocks, setBlocks] = useState<EditorBlock[]>([]);
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -56,6 +60,7 @@ export function NewsDetailAdminPage() {
     if (!loaded || dirty) return;
     setTitle(loaded.title);
     setSummary(loaded.summary ?? '');
+    setLanguage(loaded.languageCode);
     setBlocks(toEditorBlocks(loaded.blocks));
   }, [loaded, dirty]);
 
@@ -69,6 +74,7 @@ export function NewsDetailAdminPage() {
       contentApi.updateNews(newsId, {
         title,
         summary,
+        language,
         blocks: toSavePayload(blocks),
       }),
     onSuccess: () => {
@@ -237,6 +243,62 @@ export function NewsDetailAdminPage() {
                     rows={2}
                     fullWidth
                   />
+
+                  <TextField
+                    select
+                    label={t('admin.fieldNewsLanguage')}
+                    value={language}
+                    onChange={(event) => {
+                      setLanguage(event.target.value);
+                      setDirty(true);
+                    }}
+                    sx={{ maxWidth: 260 }}
+                  >
+                    {LANGUAGES.map((item) => (
+                      <MenuItem key={item.code} value={item.code}>
+                        {item.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  <Divider />
+
+                  {/*
+                    Tarjimalar. Har bir til alohida maqola bo'lgani uchun
+                    ular shu yerdan ochiladi yoki shu yerdan yaratiladi -
+                    muharrir qaysi tillar tayyor ekanini bir qarashda ko'radi.
+                  */}
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      {t('admin.newsTranslations')}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                      {LANGUAGES.filter((item) => item.code !== news?.languageCode).map((item) => {
+                        const existing = news?.translations.find(
+                          (translation) => translation.languageCode === item.code,
+                        );
+
+                        return existing ? (
+                          <Chip
+                            key={item.code}
+                            label={`${item.name}: ${existing.title}`}
+                            color={existing.published ? 'success' : 'default'}
+                            variant="outlined"
+                            onClick={() => navigate(`/admin/news/${existing.id}`)}
+                          />
+                        ) : (
+                          <Chip
+                            key={item.code}
+                            label={t('admin.newsAddTranslation', { language: item.name })}
+                            variant="outlined"
+                            onClick={() =>
+                              navigate(`/admin/news?translationOf=${newsId}&language=${item.code}`)
+                            }
+                          />
+                        );
+                      })}
+                    </Stack>
+                  </Box>
 
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>

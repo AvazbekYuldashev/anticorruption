@@ -3,18 +3,24 @@ package api.anticorruption.content;
 import api.anticorruption.attachment.FileStorageService;
 import api.anticorruption.attachment.StorageArea;
 import api.anticorruption.common.exception.ResourceNotFoundException;
+import api.anticorruption.common.i18n.AppLanguage;
 import api.anticorruption.common.i18n.MessageKeys;
+import api.anticorruption.common.i18n.Translator;
 import api.anticorruption.content.dto.AboutSectionResponse;
+import api.anticorruption.content.dto.AboutTranslationPayload;
 import api.anticorruption.content.dto.SaveAboutSectionRequest;
 import api.anticorruption.content.dto.SaveStaffMemberRequest;
 import api.anticorruption.content.dto.StaffMemberResponse;
+import api.anticorruption.content.dto.StaffTranslationPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Saytning o'zgarmas bo'limlari: xodimlar ro'yxati va "Bo'lim haqida"
@@ -30,15 +36,25 @@ public class SiteContentService {
     private final StaffMemberRepository staffMemberRepository;
     private final AboutSectionRepository aboutSectionRepository;
     private final FileStorageService fileStorageService;
+    private final Translator translator;
 
     // ================================================================ xodimlar
 
+    /** Sayt uchun: faol xodimlar, so'rov tilidagi matn bilan. */
     @Transactional(readOnly = true)
-    public List<StaffMemberResponse> listStaff(boolean includeInactive) {
-        List<StaffMember> members = includeInactive
-                ? staffMemberRepository.findAllByOrderByDisplayOrderAscFullNameAsc()
-                : staffMemberRepository.findByActiveTrueOrderByDisplayOrderAscFullNameAsc();
-        return members.stream().map(StaffMemberResponse::from).toList();
+    public List<StaffMemberResponse> listStaff() {
+        AppLanguage language = translator.currentLanguage();
+        return staffMemberRepository.findByActiveTrueOrderByDisplayOrderAscFullNameAsc().stream()
+                .map(member -> StaffMemberResponse.localized(member, language))
+                .toList();
+    }
+
+    /** Admin uchun: bloklanganlari ham, barcha tarjimalari bilan. */
+    @Transactional(readOnly = true)
+    public List<StaffMemberResponse> listStaffForAdmin() {
+        return staffMemberRepository.findAllByOrderByDisplayOrderAscFullNameAsc().stream()
+                .map(StaffMemberResponse::forAdmin)
+                .toList();
     }
 
     @Transactional
@@ -55,8 +71,9 @@ public class SiteContentService {
                 .active(request.active() == null || request.active())
                 .build();
 
+        applyStaffTranslations(member, request.translations());
         staffMemberRepository.save(member);
-        return StaffMemberResponse.from(member);
+        return StaffMemberResponse.forAdmin(member);
     }
 
     @Transactional
@@ -77,8 +94,9 @@ public class SiteContentService {
             member.setActive(request.active());
         }
 
+        applyStaffTranslations(member, request.translations());
         staffMemberRepository.save(member);
-        return StaffMemberResponse.from(member);
+        return StaffMemberResponse.forAdmin(member);
     }
 
     /** Suratni almashtiradi. Eskisi diskdan o'chiriladi. */
@@ -91,7 +109,7 @@ public class SiteContentService {
         staffMemberRepository.save(member);
 
         fileStorageService.delete(previous, StorageArea.PUBLIC);
-        return StaffMemberResponse.from(member);
+        return StaffMemberResponse.forAdmin(member);
     }
 
     @Transactional
@@ -105,11 +123,20 @@ public class SiteContentService {
 
     // ========================================================== bo'lim haqida
 
-    /** Sahifa hali to'ldirilmagan bo'lsa bo'sh mazmun qaytadi - 404 emas. */
+    /** Sayt uchun. Sahifa hali to'ldirilmagan bo'lsa bo'sh mazmun qaytadi - 404 emas. */
     @Transactional(readOnly = true)
     public AboutSectionResponse about() {
+        AppLanguage language = translator.currentLanguage();
         return aboutSectionRepository.findFirstByOrderByIdAsc()
-                .map(AboutSectionResponse::from)
+                .map(about -> AboutSectionResponse.localized(about, language))
+                .orElseGet(AboutSectionResponse::empty);
+    }
+
+    /** Admin uchun: asosiy matn va barcha tarjimalar birga. */
+    @Transactional(readOnly = true)
+    public AboutSectionResponse aboutForAdmin() {
+        return aboutSectionRepository.findFirstByOrderByIdAsc()
+                .map(AboutSectionResponse::forAdmin)
                 .orElseGet(AboutSectionResponse::empty);
     }
 
@@ -139,8 +166,112 @@ public class SiteContentService {
         about.getTasks().clear();
         about.getTasks().addAll(tasks);
 
+        applyAboutTranslations(about, request.translations());
+
         aboutSectionRepository.save(about);
-        return AboutSectionResponse.from(about);
+        return AboutSectionResponse.forAdmin(about);
+    }
+
+    // ================================================================ tarjimalar
+
+    /*
+     * Tarjimalar joyida yangilanadi, o'chirilib qaytadan yozilmaydi.
+     * Sabab: (yozuv, til) juftligi noyob bo'lgani uchun Hibernate
+     * o'chirishdan oldin qo'shib yuborsa, unikal indeks buzilardi.
+     * Ro'yxatdan tushgan tillar oxirida olib tashlanadi.
+     */
+    private void applyStaffTranslations(StaffMember member, List<StaffTranslationPayload> requested) {
+        Set<AppLanguage> keep = EnumSet.noneOf(AppLanguage.class);
+
+        if (requested != null) {
+            for (StaffTranslationPayload item : requested) {
+                AppLanguage language = AppLanguage.from(item.languageCode());
+
+                // Asosiy til tarjima emas - u yozuvning o'zida turadi.
+                if (language == AppLanguage.DEFAULT || isEmpty(item) || !keep.add(language)) {
+                    continue;
+                }
+
+                StaffMemberTranslation translation = member.getTranslations().stream()
+                        .filter(existing -> existing.getLanguage() == language)
+                        .findFirst()
+                        .orElseGet(() -> {
+                            StaffMemberTranslation created = StaffMemberTranslation.builder()
+                                    .member(member)
+                                    .language(language)
+                                    .build();
+                            member.getTranslations().add(created);
+                            return created;
+                        });
+
+                translation.setFullName(blankToNull(item.fullName()));
+                translation.setPosition(blankToNull(item.position()));
+                translation.setAcademicDegree(blankToNull(item.academicDegree()));
+                translation.setBiography(blankToNull(item.biography()));
+                translation.setReceptionHours(blankToNull(item.receptionHours()));
+            }
+        }
+
+        member.getTranslations().removeIf(translation -> !keep.contains(translation.getLanguage()));
+    }
+
+    private void applyAboutTranslations(AboutSection about, List<AboutTranslationPayload> requested) {
+        Set<AppLanguage> keep = EnumSet.noneOf(AppLanguage.class);
+
+        if (requested != null) {
+            for (AboutTranslationPayload item : requested) {
+                AppLanguage language = AppLanguage.from(item.languageCode());
+
+                if (language == AppLanguage.DEFAULT || isEmpty(item) || !keep.add(language)) {
+                    continue;
+                }
+
+                AboutSectionTranslation translation = about.getTranslations().stream()
+                        .filter(existing -> existing.getLanguage() == language)
+                        .findFirst()
+                        .orElseGet(() -> {
+                            AboutSectionTranslation created = AboutSectionTranslation.builder()
+                                    .about(about)
+                                    .language(language)
+                                    .build();
+                            about.getTranslations().add(created);
+                            return created;
+                        });
+
+                translation.setTitle(blankToNull(item.title()));
+                translation.setBody(blankToNull(item.body()));
+                translation.setTasksTitle(blankToNull(item.tasksTitle()));
+                translation.setGoal(blankToNull(item.goal()));
+                translation.getTasks().clear();
+                translation.getTasks().addAll(cleanTasks(item.tasks()));
+            }
+        }
+
+        about.getTranslations().removeIf(translation -> !keep.contains(translation.getLanguage()));
+    }
+
+    /** Bo'sh tarjima saqlanmaydi: muharrir varaqni ochib yopgani yozuv yaratmasin. */
+    private boolean isEmpty(StaffTranslationPayload item) {
+        return blankToNull(item.fullName()) == null
+                && blankToNull(item.position()) == null
+                && blankToNull(item.academicDegree()) == null
+                && blankToNull(item.biography()) == null
+                && blankToNull(item.receptionHours()) == null;
+    }
+
+    private boolean isEmpty(AboutTranslationPayload item) {
+        return blankToNull(item.title()) == null
+                && blankToNull(item.body()) == null
+                && blankToNull(item.tasksTitle()) == null
+                && blankToNull(item.goal()) == null
+                && cleanTasks(item.tasks()).isEmpty();
+    }
+
+    private List<String> cleanTasks(List<String> tasks) {
+        return tasks == null ? List.of() : tasks.stream()
+                .filter(task -> task != null && !task.isBlank())
+                .map(String::trim)
+                .toList();
     }
 
     // ================================================================ yordamchilar

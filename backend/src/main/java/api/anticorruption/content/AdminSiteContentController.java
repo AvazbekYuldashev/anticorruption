@@ -35,7 +35,7 @@ public class AdminSiteContentController {
     @Operation(summary = "Barcha xodimlar", description = "Nofaollari ham")
     @GetMapping("/staff")
     public ResponseEntity<List<StaffMemberResponse>> listStaff() {
-        return ResponseEntity.ok(siteContentService.listStaff(true));
+        return ResponseEntity.ok(siteContentService.listStaffForAdmin());
     }
 
     @Operation(summary = "Xodim qo'shish")
@@ -74,7 +74,7 @@ public class AdminSiteContentController {
     @Operation(summary = "Bo'lim haqida sahifasi", description = "Tahrirlash uchun joriy mazmun")
     @GetMapping("/about")
     public ResponseEntity<AboutSectionResponse> about() {
-        return ResponseEntity.ok(siteContentService.about());
+        return ResponseEntity.ok(siteContentService.aboutForAdmin());
     }
 
     @Operation(

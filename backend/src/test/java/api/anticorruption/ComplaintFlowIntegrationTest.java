@@ -200,7 +200,7 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Foydalanuvchi ro'yxatdan o'tadi, kiradi va o'z murojaatini ko'radi")
     void registeredUserCanSubmitAndSeeOwnComplaints() throws Exception {
         String email = "talaba1@test.uz";
-        String token = registerAndLogin("Alisher Karimov", email, "Talaba12345!");
+        String token = createUserAndLogin("Alisher Karimov", email, "Talaba12345!");
 
         mockMvc.perform(authorized(get("/api/v1/me"), token))
                 .andExpect(status().isOk())
@@ -222,7 +222,7 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Tizimga kirgan foydalanuvchi anonim yuborsa, murojaat unga bog'lanmaydi")
     void anonymousSubmissionIsNotLinkedEvenWhenLoggedIn() throws Exception {
-        String token = registerAndLogin("Anonim Foydalanuvchi", "anonim@test.uz", "Anonim12345!");
+        String token = createUserAndLogin("Anonim Foydalanuvchi", "anonim@test.uz", "Anonim12345!");
 
         mockMvc.perform(authorized(
                         json(post("/api/v1/complaints"),
@@ -237,17 +237,28 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Bir xil email bilan ikki marta ro'yxatdan o'tib bo'lmaydi")
+    @DisplayName("Bir xil email bilan ikkita hisob yaratib bo'lmaydi")
     void duplicateEmailIsRejected() throws Exception {
+        String token = adminToken();
         String body = """
-                {"fullName": "Takroriy Foydalanuvchi", "email": "takror@test.uz", "password": "Takror12345!"}
+                {"fullName": "Takroriy Foydalanuvchi", "email": "takror@test.uz",
+                 "password": "Takror12345!", "role": "CITIZEN"}
                 """;
 
-        mockMvc.perform(json(post("/api/v1/auth/register"), body))
+        mockMvc.perform(authorized(json(post("/api/v1/admin/users"), body), token))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(json(post("/api/v1/auth/register"), body))
+        mockMvc.perform(authorized(json(post("/api/v1/admin/users"), body), token))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Ochiq ro'yxatdan o'tish yo'li mavjud emas")
+    void publicRegistrationIsGone() throws Exception {
+        mockMvc.perform(json(post("/api/v1/auth/register"), """
+                        {"fullName": "Ruxsatsiz Hisob", "email": "ruxsatsiz@test.uz", "password": "Parol12345!"}
+                        """))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -369,7 +380,7 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Oddiy foydalanuvchi admin yo'liga kira olmaydi")
     void citizenCannotAccessAdminEndpoints() throws Exception {
-        String token = registerAndLogin("Dilnoza Rahimova", "talaba2@test.uz", "Talaba12345!");
+        String token = createUserAndLogin("Dilnoza Rahimova", "talaba2@test.uz", "Talaba12345!");
 
         mockMvc.perform(authorized(get("/api/v1/admin/complaints"), token))
                 .andExpect(status().isForbidden())

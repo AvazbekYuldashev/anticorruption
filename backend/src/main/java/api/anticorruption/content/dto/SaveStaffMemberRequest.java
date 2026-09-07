@@ -1,9 +1,12 @@
 package api.anticorruption.content.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 /** Bo'lim xodimini qo'shish yoki tahrirlash. */
 public record SaveStaffMemberRequest(
@@ -35,6 +38,11 @@ public record SaveStaffMemberRequest(
 
         Integer displayOrder,
 
-        Boolean active
+        Boolean active,
+
+        /* Boshqa tillardagi matn; asosiy til yuqoridagi maydonlarda qoladi. */
+        @Size(max = 10, message = "{validation.size.max}")
+        @Valid
+        List<StaffTranslationPayload> translations
 ) {
 }

@@ -47,6 +47,12 @@ public class ProductionSafetyCheck {
     @Value("${spring.jpa.hibernate.ddl-auto:none}")
     private String ddlAuto;
 
+    @Value("${app.auth.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${app.auth.same-site:Lax}")
+    private String cookieSameSite;
+
     @EventListener(ApplicationReadyEvent.class)
     public void verify() {
         List<String> problems = new ArrayList<>();
@@ -65,6 +71,12 @@ public class ProductionSafetyCheck {
         }
         if (allowedOrigins != null && allowedOrigins.contains("localhost")) {
             problems.add("APP_CORS_ORIGINS da localhost qolgan - haqiqiy domenni ko'rsating");
+        }
+        if (!cookieSecure) {
+            problems.add("app.auth.secure=false - seans cookie'lari HTTPS'siz ham yuboriladi");
+        }
+        if ("None".equalsIgnoreCase(cookieSameSite) && !cookieSecure) {
+            problems.add("SameSite=None faqat secure=true bilan ishlaydi");
         }
         // Ishlab chiqarishda sxemani Hibernate emas, migratsiya boshqaradi.
         if ("update".equals(ddlAuto) || "create".equals(ddlAuto) || "create-drop".equals(ddlAuto)) {

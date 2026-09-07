@@ -13,7 +13,11 @@ import java.util.List;
  * tartibda kelsa, saytda ham shunday chiqadi. Ro'yxat to'liq almashtiriladi -
  * unda yo'q blok o'chiriladi.
  *
- * @param published null bo'lsa holat o'zgarmaydi (yangi yangilik qoralama bo'ladi)
+ * @param published     null bo'lsa holat o'zgarmaydi (yangi yangilik qoralama bo'ladi)
+ * @param language      "uz", "uz-cyrl", "ru" yoki "en"; ko'rsatilmasa asosiy til
+ * @param translationOf mavjud yangilikning id si - yangi yozuv o'shaning
+ *                      tarjimasi sifatida bog'lanadi. Faqat yaratishda
+ *                      ishlatiladi; tahrirlashda e'tiborga olinmaydi.
  */
 public record SaveNewsRequest(
 
@@ -25,6 +29,11 @@ public record SaveNewsRequest(
         String summary,
 
         Boolean published,
+
+        @Size(max = 10, message = "{validation.size.max}")
+        String language,
+
+        Long translationOf,
 
         @Size(max = 200, message = "{validation.size.max}")
         @Valid

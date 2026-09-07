@@ -11,8 +11,8 @@ ochiq reyestr qo'shilgan.
 
 ```
 anticorruption/
-├── src/          Backend (Spring Boot) — REST API
-└── frontend/     Frontend (React + Vite + TypeScript)
+├── backend/      Spring Boot 4 · Java 21 · PostgreSQL — REST API
+└── frontend/     React · Vite · TypeScript — sayt va admin panel
 ```
 
 Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
@@ -43,10 +43,10 @@ holat tarixi, email xabarnomalar, Swagger hujjatlari.
 
 ### 2. Ulanishni sozlang
 
-Sozlamalar [`application.properties`](src/main/resources/application.properties) da.
+Sozlamalar [`application.properties`](backend/src/main/resources/application.properties) da.
 **Parolni bu faylga yozmang** — u repoga tushadi. Ikkita xavfsiz yo'l bor.
 
-`src/main/resources/application-local.properties` yarating (u `.gitignore` da,
+`backend/src/main/resources/application-local.properties` yarating (u `.gitignore` da,
 ilova uni avtomatik yuklaydi va asosiy fayldagi qiymatlarni almashtiradi):
 
 ```properties
@@ -64,11 +64,17 @@ $env:DB_PASSWORD = "..."; $env:APP_JWT_SECRET = "kamida-32-baytlik-tasodifiy-kal
 ### 3. Ishga tushiring
 
 ```bash
+cd backend
 ./mvnw spring-boot:run
 ```
 
-Birinchi ishga tushishda jadvallar avtomatik yaratiladi va bitta administrator
-qo'shiladi: `admin@anticorruption.uz` / `Admin12345!` (standart).
+Birinchi ishga tushishda jadvallar avtomatik yaratiladi va ikkita hisob
+qo'shiladi (standart qiymatlar):
+
+| Rol | Email | Parol |
+|---|---|---|
+| Administrator | `admin@anticorruption.uz` | `Admin12345!` |
+| Moderator | `moderator@anticorruption.uz` | `Moderator12345!` |
 
 **Hujjatlar:** http://localhost:8080/swagger-ui.html
 
@@ -87,11 +93,13 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 
 | Metod | Yo'l | Vazifasi |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` · `/login` | Ro'yxatdan o'tish, kirish |
+| `POST` | `/api/v1/auth/login` | Tizimga kirish (ochiq ro'yxatdan o'tish yo'q) |
+| `POST` | `/api/v1/auth/refresh` | Seansni yangilash (yangilash cookie'si bo'yicha) |
+| `POST` | `/api/v1/auth/logout` | Chiqish |
+| `GET` | `/api/v1/auth/csrf` | CSRF tokenini o'rnatish |
 | `POST` | `/api/v1/complaints` | Murojaat yuborish |
 | `GET` | `/api/v1/complaints/track/{kod}` | Holatni tekshirish |
 | `POST` | `/api/v1/complaints/track/{kod}/attachments` | Dalil biriktirish |
-| `GET` | `/api/v1/complaints/register` | Ochiq reyestr |
 | `GET` | `/api/v1/reference` | Kategoriya, fakultet, maqom ro'yxatlari |
 | `GET` | `/api/v1/stats/public` · `/stats/faculty-rating` | Statistika va fakultetlar kesimi |
 | `GET` | `/api/v1/news` · `/news/{slug}` | Yangiliklar |
@@ -102,7 +110,8 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 
 ### Foydalanuvchi uchun
 
-`GET /api/v1/me` · `GET /api/v1/complaints/my` · `GET /api/v1/complaints/my/{id}` ·
+`GET /api/v1/me` · `PUT /api/v1/me` (ism va login) · `POST /api/v1/me/password` ·
+`GET /api/v1/complaints/my` · `GET /api/v1/complaints/my/{id}` ·
 `GET /api/v1/attachments/{id}`
 
 ### Moderator va administrator
@@ -120,7 +129,27 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 
 ### Faqat administrator
 
-`/api/v1/admin/users` (rollar, bloklash) · `/api/v1/admin/faculties` (tuzilma)
+`/api/v1/admin/users` (yaratish, rollar, bloklash, o'chirish) ·
+`/api/v1/admin/faculties` (tuzilma) ·
+`GET /api/v1/complaints/register` (murojaatlar reyestri - xodimlar uchun)
+
+### Hisoblar
+
+Ochiq ro'yxatdan o'tish yo'q: barcha hisoblarni administrator ochadi va
+dastlabki parolni o'zi beradi. Egasi tizimga kirgach login (email) va
+parolini o'zi almashtiradi (`PUT /api/v1/me`, `POST /api/v1/me/password`).
+
+Murojaat yuborish uchun hisob umuman kerak emas - u anonim ham yuboriladi.
+
+Birinchi ishga tushishda bitta administrator va bitta moderator yaratiladi:
+`admin@anticorruption.uz` / `Admin12345!` va
+`moderator@anticorruption.uz` / `Moderator12345!` (standart) - parollarni
+darhol almashtiring yoki `APP_ADMIN_PASSWORD` va `APP_MODERATOR_PASSWORD`
+orqali bering. Moderator kerak bo'lmasa `app.moderator.email` ni bo'sh
+qoldiring - u holda yaratilmaydi.
+
+Bazada shu emailli hisob allaqachon bo'lsa, u qayta yozilmaydi: paroli ham,
+roli ham o'zgarmaydi.
 
 ### Filtrlash namunasi
 
@@ -268,6 +297,7 @@ bo'lakka ajratilgan (lazy yuklanadi). Batafsil: [frontend/README.md](frontend/RE
 ## Testlar
 
 ```bash
+cd backend
 ./mvnw test
 ```
 
@@ -278,14 +308,14 @@ xotiradagi H2 da ishlaydi — PostgreSQL kerak emas.
 ## Ma'lumotlar bazasi migratsiyalari
 
 Sxemani Hibernate emas, **Flyway** boshqaradi:
-`src/main/resources/db/migration/`. Ilova ishga tushganda migratsiyalar
+`backend/src/main/resources/db/migration/`. Ilova ishga tushganda migratsiyalar
 avtomatik qo'llanadi, Hibernate esa faqat entity va jadval mosligini
 tekshiradi (`ddl-auto=validate`).
 
 **Entity o'zgartirilsa** yangi migratsiya fayli yozilishi shart:
 
 ```sql
--- src/main/resources/db/migration/V2__xodimga_telegram_qoshildi.sql
+-- backend/src/main/resources/db/migration/V2__xodimga_telegram_qoshildi.sql
 alter table staff_members add column telegram varchar(120);
 ```
 
@@ -309,7 +339,7 @@ Ishlab chiqish paytida tez tajriba qilish uchun (tavsiya etilmaydi):
 java -jar anticorruption.jar --spring.profiles.active=prod
 ```
 
-`prod` profili ([application-prod.properties](src/main/resources/application-prod.properties)):
+`prod` profili ([application-prod.properties](backend/src/main/resources/application-prod.properties)):
 sxema tekshiruvi, Swagger yopiq, loglar faylga yoziladi va aylanadi,
 javoblar siqiladi, so'rov chegarasi yoqilgan.
 
@@ -327,7 +357,7 @@ export APP_STORAGE_LOCATION=/var/lib/anticorruption/uploads
 ```
 
 Biror qiymat ishlab chiqish holatida qolsa, ilova **ishga tushmaydi**:
-[`ProductionSafetyCheck`](src/main/java/api/anticorruption/config/ProductionSafetyCheck.java)
+[`ProductionSafetyCheck`](backend/src/main/java/api/anticorruption/config/ProductionSafetyCheck.java)
 JWT kaliti, ovoz tuzi, administrator paroli, CORS manzillari va
 `ddl-auto` ni tekshiradi.
 
@@ -411,13 +441,151 @@ bazada emas, diskda yotadi.
 - [ ] Zaxira nusxa jadvali (cron)
 - [ ] Monitoring: `/actuator/health` ni kuzatuvchi xizmatga ulash
 
+## Seans va xavfsizlik
+
+Tokenlar brauzerda `localStorage` da emas, **`HttpOnly` cookie** da saqlanadi:
+sahifadagi JavaScript ularga umuman kira olmaydi, ya'ni XSS topilgan taqdirda
+ham token o'g'irlanmaydi.
+
+| Cookie | Muddat | Yo'l | Vazifasi |
+|---|---|---|---|
+| `ac_access` | 15 daqiqa | `/` | Har bir so'rovda foydalanuvchini aniqlaydi |
+| `ac_refresh` | 14 kun | `/api/v1/auth` | Yangi kirish tokeni olish uchun |
+| `XSRF-TOKEN` | seans | `/` | CSRF tokeni (bu bittasi `HttpOnly` emas — uni interfeys o'qiydi) |
+
+- Kirish tokeni **qisqa muddatli**, chunki uni bekor qilib bo'lmaydi. Yangilash
+  tokeni esa bazada turadi (faqat SHA-256 xeshi) va istalgan payt bekor qilinadi.
+- Har bir yangilashda token **almashadi** (rotation). Bekor qilingan token
+  qaytadan kelsa — bu o'g'irlanish alomati: o'sha foydalanuvchining barcha
+  seanslari uziladi.
+- Parol almashtirilganda boshqa qurilmalardagi seanslar uziladi, joriy qurilma
+  esa yangi cookie'lar oladi.
+- Cookie avtomatik yuborilgani uchun **CSRF himoyasi majburiy**: yozuv so'rovi
+  `XSRF-TOKEN` cookie'sidagi qiymatni `X-XSRF-TOKEN` sarlavhasida qaytarishi
+  kerak. Interfeys buni o'zi qiladi (`frontend/src/api/client.ts`).
+  Anonim ochiq yozuvlar — murojaat yuborish, dalil biriktirish, ovoz berish —
+  hech qanday seansga tayanmaydi, shuning uchun ular ro'yxatdan chiqarilgan.
+- Ishlab chiqarishda `app.auth.secure=true` (faqat HTTPS). Frontend API dan
+  boshqa domenda tursa `APP_COOKIE_SAME_SITE=None` kerak bo'ladi — u faqat
+  `secure=true` bilan ishlaydi. `ProductionSafetyCheck` buni tekshiradi.
+
+| Endpoint | Vazifasi |
+|---|---|
+| `POST /api/v1/auth/login` | Kirish; ikkala cookie'ni o'rnatadi |
+| `POST /api/v1/auth/refresh` | Yangilash cookie'si bo'yicha yangi seans |
+| `POST /api/v1/auth/logout` | Tokenni bekor qiladi, cookie'larni o'chiradi |
+| `GET /api/v1/auth/csrf` | `XSRF-TOKEN` cookie'sini o'rnatadi |
+
+Brauzerdan tashqari mijozlar uchun `Authorization: Bearer <token>` sarlavhasi
+ham qabul qilinaveradi — cookie topilmasa o'sha ishlatiladi.
+
+## So'rov chegarasi
+
+Ochiq yozuv amallari (kirish, murojaat yuborish, ovoz berish) bitta IP dan
+keladigan oqimdan himoyalangan. Hisob ikki joyda yuritilishi mumkin:
+
+| `app.rate-limit.store` | Qachon |
+|---|---|
+| `memory` (standart) | Ilova bitta nusxada ishlaydi. Redis kerak emas. |
+| `redis` | Bir nechta nusxa. Chegara barcha nusxalar uchun umumiy bo'ladi. |
+
+```bash
+APP_RATE_LIMIT_STORE=redis REDIS_HOST=127.0.0.1 REDIS_PORT=6379 java -jar app.jar
+```
+
+Redis javob bermay qolsa ilova to'xtamaydi: chegara vaqtincha xotirada
+hisoblanadi va logga ogohlantirish yoziladi. Chegara — himoya qatlami,
+ruxsat tekshiruvi emas, shuning uchun uning uzilishi butun saytni
+to'xtatmasligi kerak.
+
+## Kontent tillari
+
+Tizim xabarlari to'rt tilda (`uz`, `uz-cyrl`, `ru`, `en`) — ular
+`src/main/resources/i18n/messages*.properties` da. Yangiliklar esa boshqacha
+ishlaydi: **har bir til uchun alohida maqola**.
+
+Sabab amaliy — ruscha maqola ko'pincha o'zbekchasidan qisqaroq bo'ladi va
+rasmlar ham boshqacha tanlanadi. "Bitta maqola — to'rtta tarjima maydoni"
+modeli muharrir uchun noqulay bo'lardi.
+
+Nusxalar `translation_group` ustuni orqali bog'lanadi:
+
+- Yangi maqola o'ziga yangi guruh ochadi.
+- Admin panelida "Tarjimalar" bo'limidan boshqa tilda nusxa yaratiladi —
+  u o'sha guruhga qo'shiladi (`translationOf` maydoni).
+- Bitta guruhda bir tildan faqat bitta nusxa bo'ladi.
+
+Ro'yxat va qidiruv `?lang=` bo'yicha filtrlanadi, lekin **tarjimasi yo'q
+maqola ro'yxatdan tushib qolmaydi**: so'ralgan tilda nusxasi bo'lmagan
+guruhlar uchun o'zbekcha varianti ko'rsatiladi. Aks holda rus tiliga o'tgan
+odam yarim bo'sh sayt ko'rardi.
+
+Maqola sahifasida `translations` ro'yxati qaytadi — sayt shu orqali
+"Boshqa tillarda" havolalarini chiqaradi va o'quvchini ro'yxatga emas,
+aynan shu maqolaning tarjimasiga olib boradi.
+
+### "Bo'lim haqida" va xodimlar — tarjima jadvali
+
+Bu ikkisi boshqacha ishlaydi. Ular struktura sifatida bitta: sarlavha, matn,
+vazifalar ro'yxati har tilda ham shu tartibda qoladi, faqat matn almashadi.
+Shuning uchun bu yerda alohida yozuv emas, **tarjima jadvali** to'g'ri keladi
+(`about_section_translations`, `staff_member_translations`).
+
+- Asosiy til (o'zbekcha) matni asosiy jadvalda qoladi — tarjima umuman
+  qo'shilmasa ham sayt ilgarigidek ishlaydi.
+- **Fallback maydon darajasida**: tarjimada bo'sh qolgan sarlavha o'zbekchasini
+  ko'rsatadi, tarjima qilingan qismi esa o'z tilida chiqadi. Butun sahifani
+  "tarjima bor/yo'q" deb ikkiga bo'lish yarim tayyor tarjimani foydasiz
+  qilib qo'yardi.
+- Xodimlarda faqat matn tarjima qilinadi. Telefon, email, surat, tartib va
+  faollik holati tilga bog'liq emas — ular bir joyda kiritiladi.
+- Admin panelida til varaqalari bor; hammasi bitta "Saqlash" bilan yuboriladi.
+  Bo'sh varaq saqlanmaydi.
+
+Admin javobida (`GET /api/v1/admin/about`, `/admin/staff`) asosiy matn va
+barcha tarjimalar birga keladi; saytga esa faqat so'ralgan tildagi natija
+qaytadi.
+
+## Fayllar va antivirus
+
+Yuklangan fayl uch bosqichdan o'tadi:
+
+1. **MIME turi** ruxsat etilganlar ro'yxatida bo'lishi kerak
+   (`app.storage.allowed-content-types`).
+2. **Fayl imzosi** ko'rsatilgan turga mos kelishi kerak — `.jpg` deb atalgan
+   bajariladigan fayl shu yerda to'xtaydi (`FileSignatures`).
+3. **Antivirus** — yoqilgan bo'lsa, fayl `clamd` ga yuboriladi (INSTREAM).
+
+Antivirus standart holatda **o'chiq**: ishlab chiqish uchun ClamAV o'rnatish
+shart emas. Serverda yoqish:
+
+```bash
+apt install clamav-daemon        # port 3310
+APP_ANTIVIRUS_ENABLED=true java -jar app.jar --spring.profiles.active=prod
+```
+
+| Sozlama | Standart | Ma'nosi |
+|---|---|---|
+| `app.antivirus.enabled` | `false` | Tekshiruv yoqilganmi |
+| `app.antivirus.host` / `.port` | `127.0.0.1` / `3310` | clamd manzili |
+| `app.antivirus.fail-closed` | `true` | clamd javob bermasa fayl rad etiladi |
+
+`fail-closed=true` ataylab standart: tekshirilmagan faylni o'tkazib yuborish
+antivirusni yoqishning ma'nosini yo'qotardi. Agar murojaat yuborishning
+uzilib qolgani xavfliroq deb hisoblasangiz, uni `false` qiling — shunda fayl
+o'tadi va logga ogohlantirish yoziladi.
+
+Zararli fayl topilsa u diskdan darhol o'chiriladi va bazaga umuman
+yozilmaydi. Tekshiruv fayl diskka yozilgandan keyin, oqim orqali bajariladi —
+katta fayl ham xotirani band qilmaydi.
+
+Yangi kutubxona qo'shilmagan: clamd protokoli sodda (buyruq, bo'laklar,
+bitta qatorli javob), shuning uchun u to'g'ridan-to'g'ri soket orqali
+bajariladi (`AntivirusScanner`).
+
 ## Keyingi qadamlar
 
-- **Refresh token** — hozir faqat 12 soatlik access token bor.
-- **Fayllarni antivirus tekshiruvi** (ClamAV) — hozir tur va imzo tekshiriladi.
-- **So'rov chegarasi umumiy omborda** — hozir xotirada, ya'ni bitta nusxa uchun.
-  Bir nechta serverga chiqilsa Redis kerak bo'ladi.
-- **Kontent tarjimalari** — tizim xabarlari to'rt tilda, yangilik va sahifa
-  matnlari esa bitta tilda. Kerak bo'lsa tarjima jadvallari qo'shiladi.
-- **JWT ni HttpOnly cookie ga o'tkazish** — hozir `localStorage` da
-  ([frontend/src/lib/session.ts](frontend/src/lib/session.ts) da izohlangan).
+Ro'yxatdagi ishlar bajarildi. Keyingi nomzodlar:
+
+- **Zaxira nusxa** — baza va `uploads/` uchun jadval bo'yicha nusxa olish.
+- **Monitoring** — `/actuator/health` ni kuzatuvchi xizmatga ulash.

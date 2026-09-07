@@ -167,7 +167,7 @@ class I18nIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Ruxsat yo'qligi haqidagi xabar tanlangan tilda qaytadi")
     void accessDeniedMessageIsTranslated() throws Exception {
-        String token = registerAndLogin("Til Sinovi", "til@test.uz", "TilSinov12345!");
+        String token = createUserAndLogin("Til Sinovi", "til@test.uz", "TilSinov12345!");
 
         mockMvc.perform(authorized(get("/api/v1/admin/complaints").param("lang", "en"), token))
                 .andExpect(status().isForbidden())

@@ -29,6 +29,13 @@ export interface SaveNewsPayload {
   title: string;
   summary?: string;
   published?: boolean;
+  /** "uz", "uz-cyrl", "ru" yoki "en". Ko'rsatilmasa asosiy til. */
+  language?: string;
+  /**
+   * Mavjud yangilikning id si - yangi yozuv o'shaning tarjimasi sifatida
+   * bog'lanadi. Faqat yaratishda ishlaydi.
+   */
+  translationOf?: number;
   /** To'liq ro'yxat: unda yo'q blok o'chiriladi. */
   blocks: SaveNewsBlock[];
 }
@@ -50,10 +57,36 @@ export interface SaveStaffPayload {
   receptionHours?: string;
   displayOrder?: number;
   active?: boolean;
+  /**
+   * Boshqa tillardagi matn. Asosiy til yuqoridagi maydonlarda qoladi,
+   * shuning uchun bu ro'yxat bo'sh bo'lsa ham hech narsa yo'qolmaydi.
+   */
+  translations?: SaveStaffTranslation[];
+}
+
+/** Xodimning bir tildagi matni. Telefon va surat tilga bog'liq emas. */
+export interface SaveStaffTranslation {
+  languageCode: string;
+  fullName?: string;
+  position?: string;
+  academicDegree?: string;
+  biography?: string;
+  receptionHours?: string;
 }
 
 /** "Bo'lim haqida" sahifasini saqlash. Bo'sh bandlar server tomonida tashlanadi. */
 export interface SaveAboutPayload {
+  title?: string;
+  body?: string;
+  tasksTitle?: string;
+  tasks: string[];
+  goal?: string;
+  /** Boshqa tillardagi matn; asosiy til yuqoridagi maydonlarda. */
+  translations?: SaveAboutTranslation[];
+}
+
+export interface SaveAboutTranslation {
+  languageCode: string;
   title?: string;
   body?: string;
   tasksTitle?: string;

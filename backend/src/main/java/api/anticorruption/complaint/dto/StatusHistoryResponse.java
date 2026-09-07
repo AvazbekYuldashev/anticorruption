@@ -44,20 +44,34 @@ public record StatusHistoryResponse(
                 translator.of(entry.getOldStatus()),
                 entry.getNewStatus(),
                 translator.of(entry.getNewStatus()),
-                null,
+                systemNote(entry, translator),
                 null,
                 entry.getChangedAt());
     }
 
     /**
-     * Murojaat yaratilgan paytdagi birinchi yozuvda izoh bazada saqlanmaydi -
-     * u tizim yozuvi bo'lgani uchun har safar joriy tilga o'giriladi.
-     * Xodim yozgan izohlar esa qanday yozilgan bo'lsa shundayligicha qaytadi.
+     * Tizim yozuvlarida izoh bazada saqlanmaydi - ular har safar joriy tilga
+     * o'giriladi. Xodim yozgan izohlar esa qanday yozilgan bo'lsa shundayligicha
+     * qaytadi.
+     *
+     * <p>Ikki tizim yozuvi bor: murojaat yaratilgan paytdagi birinchi yozuv
+     * (eski holat yo'q) va holat o'zgarmasdan javob yozilgan yozuv (eski va
+     * yangi holat bir xil).
      */
     private static String note(ComplaintStatusHistory entry, Translator translator) {
-        if (entry.getNote() != null) {
-            return entry.getNote();
+        return entry.getNote() != null ? entry.getNote() : systemNote(entry, translator);
+    }
+
+    /**
+     * Tizim o'zi qo'yadigan izoh. Murojaatchiga faqat shu ko'rsatiladi: xodim
+     * yozgan izoh ichki bo'lgani uchun ochiq tarixga hech qachon tushmaydi.
+     */
+    private static String systemNote(ComplaintStatusHistory entry, Translator translator) {
+        if (entry.getOldStatus() == null) {
+            return translator.get(MessageKeys.EMAIL_HISTORY_INITIAL);
         }
-        return entry.getOldStatus() == null ? translator.get(MessageKeys.EMAIL_HISTORY_INITIAL) : null;
+        return entry.getOldStatus() == entry.getNewStatus()
+                ? translator.get(MessageKeys.COMPLAINT_RESPONSE_HISTORY)
+                : null;
     }
 }

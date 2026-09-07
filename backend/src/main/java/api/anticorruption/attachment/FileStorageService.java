@@ -62,6 +62,7 @@ public class FileStorageService {
     private static final int BUFFER_SIZE = 8192;
 
     private final StorageProperties properties;
+    private final AntivirusScanner antivirusScanner;
 
     private final Map<StorageArea, Path> roots = new EnumMap<>(StorageArea.class);
 
@@ -114,7 +115,29 @@ public class FileStorageService {
             throw new IllegalStateException("Faylni saqlab bo'lmadi: " + storedName, ex);
         }
 
+        /*
+         * Antivirus tekshiruvi fayl diskka yozilgandan keyin bajariladi:
+         * shunda oqim ikki marta o'qilmaydi va katta fayl xotiraga
+         * yuklanmaydi. Zararli fayl darhol o'chiriladi - u hali hech
+         * qayerda ro'yxatga olinmagan, demak hech kim unga yeta olmaydi.
+         */
+        try {
+            antivirusScanner.verify(target, storedName);
+        } catch (RuntimeException ex) {
+            deleteQuietly(target);
+            throw ex;
+        }
+
         return storedName;
+    }
+
+    /** Yarim qolgan faylni o'chiradi; xatolik bo'lsa faqat logga yoziladi. */
+    private void deleteQuietly(Path target) {
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException ex) {
+            log.warn("Rad etilgan faylni o'chirib bo'lmadi: {}", target, ex);
+        }
     }
 
     /** Diskdagi faylni o'qish uchun qaytaradi. */
