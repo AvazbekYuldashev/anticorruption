@@ -148,9 +148,9 @@ class UserManagementIntegrationTest extends AbstractIntegrationTest {
 
         // Endi faqat yangi parol ishlaydi
         login("yangi.login@test.uz", "Yangi12345!");
-        mockMvc.perform(json(post("/api/v1/auth/login"), """
+        mockMvc.perform(anonymous(json(post("/api/v1/auth/login"), """
                         {"email": "yangi.login@test.uz", "password": "Eski12345!"}
-                        """))
+                        """)))
                 .andExpect(status().isUnauthorized());
     }
 

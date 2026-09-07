@@ -465,9 +465,9 @@ class SiteContentIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Kontentni tahrirlash uchun tizimga kirish shart")
     void contentManagementRequiresAuthentication() throws Exception {
-        mockMvc.perform(json(post("/api/v1/admin/news"), """
+        mockMvc.perform(anonymous(json(post("/api/v1/admin/news"), """
                         {"title": "Ruxsatsiz yangilik", "blocks": [{"type": "TEXT", "text": "Bu yaratilmasligi kerak."}]}
-                        """))
+                        """)))
                 .andExpect(status().isUnauthorized());
     }
 

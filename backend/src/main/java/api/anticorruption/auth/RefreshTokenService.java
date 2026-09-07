@@ -57,10 +57,20 @@ public class RefreshTokenService {
                 .orElseThrow(RefreshTokenService::invalid);
 
         if (stored.getRevokedAt() != null) {
-            // Bekor qilingan token qaytib keldi: nusxasi birovda bo'lishi mumkin.
-            log.warn("Bekor qilingan yangilash tokeni qayta ishlatildi: foydalanuvchi={}",
-                    stored.getUser().getId());
-            repository.revokeAllForUser(stored.getUser().getId(), Instant.now());
+            /*
+             * Aylantirilgan token qaytib keldi: mijozda uning o'rnida yangisi
+             * turishi kerak edi, demak zanjir ikki qo'lda - nusxasi birovda.
+             * Ataylab bekor qilingani (chiqish, parol almashtirish) esa
+             * shunchaki eskirgan cookie: uni rad etamiz, lekin qolgan
+             * seanslarni uzishga asos yo'q. Aks holda parolini almashtirgan
+             * odam boshqa qurilmasining navbatdagi yangilashi tufayli o'zi
+             * ham tizimdan chiqib qolardi.
+             */
+            if (stored.getRevokedReason() == RefreshTokenRevocation.ROTATED) {
+                log.warn("Aylantirilgan yangilash tokeni qayta ishlatildi: foydalanuvchi={}",
+                        stored.getUser().getId());
+                revokeAllForUser(stored.getUser().getId());
+            }
             throw invalid();
         }
         if (stored.getExpiresAt().isBefore(Instant.now())) {
@@ -69,11 +79,12 @@ public class RefreshTokenService {
 
         User user = stored.getUser();
         if (!user.isEnabled()) {
-            repository.revokeAllForUser(user.getId(), Instant.now());
+            revokeAllForUser(user.getId());
             throw invalid();
         }
 
         stored.setRevokedAt(Instant.now());
+        stored.setRevokedReason(RefreshTokenRevocation.ROTATED);
         return new Rotation(user, persist(user));
     }
 
@@ -85,13 +96,21 @@ public class RefreshTokenService {
         }
         repository.findByTokenHash(hash(rawToken))
                 .filter(token -> token.getRevokedAt() == null)
-                .ifPresent(token -> token.setRevokedAt(Instant.now()));
+                .ifPresent(token -> {
+                    token.setRevokedAt(Instant.now());
+                    token.setRevokedReason(RefreshTokenRevocation.REVOKED);
+                });
     }
 
     /** Foydalanuvchining barcha seanslarini uzadi (parol almashtirilganda). */
     @Transactional
     public void revokeAll(Long userId) {
-        repository.revokeAllForUser(userId, Instant.now());
+        revokeAllForUser(userId);
+    }
+
+    /** Ataylab uzish - shuning uchun sabab har doim {@code REVOKED}. */
+    private void revokeAllForUser(Long userId) {
+        repository.revokeAllForUser(userId, Instant.now(), RefreshTokenRevocation.REVOKED);
     }
 
     private String persist(User user) {

@@ -115,6 +115,38 @@ class AuthSessionIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("Chiqqan seansning tokeni qaytib kelsa boshqa qurilmalar uzilmaydi")
+    void replayingALoggedOutTokenDoesNotRevokeOtherSessions() throws Exception {
+        String email = "ikki.qurilma@test.uz";
+        String password = "IkkiQurilma12345!";
+        createUserAndLogin("Ikki Qurilma", email, password);
+
+        String phone = requireCookie(loginResponse(email, password), REFRESH_COOKIE);
+        String laptop = requireCookie(loginResponse(email, password), REFRESH_COOKIE);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .with(csrf())
+                        .cookie(new Cookie(REFRESH_COOKIE, phone)))
+                .andExpect(status().isNoContent());
+
+        /*
+         * Chiqqan qurilmaning eskirgan cookie'si qaytib keldi. Bu
+         * o'g'irlanish alomati emas - o'sha tokenni foydalanuvchining o'zi
+         * bekor qilgan, uni rad etish kifoya.
+         */
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
+                        .cookie(new Cookie(REFRESH_COOKIE, phone)))
+                .andExpect(status().isUnauthorized());
+
+        // Shuning uchun boshqa qurilma ishlashda davom etadi.
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .with(csrf())
+                        .cookie(new Cookie(REFRESH_COOKIE, laptop)))
+                .andExpect(status().isOk());
+    }
+
     // --------------------------------------------------------------------- CSRF
 
     @Test

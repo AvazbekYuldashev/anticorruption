@@ -99,6 +99,18 @@ abstract class AbstractIntegrationTest {
         return builder.cookie(new Cookie(ACCESS_COOKIE, token)).with(csrf());
     }
 
+    /**
+     * Seansi yo'q, lekin brauzerdek CSRF tokeni bor so'rov.
+     *
+     * <p>CSRF tokenini kirmagan mijoz ham oladi ({@code GET /auth/csrf}),
+     * shuning uchun "kirish shart" tekshiruvlari aynan shu holatni sinashi
+     * kerak. Tokensiz so'rov CSRF filtrida 403 bo'lib to'xtaydi va
+     * tekshiruv nazarda tutgan 401 gacha yetib bormaydi.
+     */
+    protected <B extends AbstractMockHttpServletRequestBuilder<B>> B anonymous(B builder) {
+        return builder.with(csrf());
+    }
+
     /** JSON tanasini qo'shadi. */
     protected <B extends AbstractMockHttpServletRequestBuilder<B>> B json(B builder, String body) {
         return builder.contentType(MediaType.APPLICATION_JSON).content(body);

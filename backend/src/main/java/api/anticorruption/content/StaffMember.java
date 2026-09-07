@@ -82,16 +82,16 @@ public class StaffMember {
     @Builder.Default
     private boolean active = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
     /** Boshqa tillardagi matn: ism, lavozim, unvon, biografiya, qabul vaqti. */
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<StaffMemberTranslation> translations = new ArrayList<>();
 
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }

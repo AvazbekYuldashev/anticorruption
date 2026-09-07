@@ -38,7 +38,9 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.statusLabel").value("Yangi"))
                 // Ochiq javobda ichki ma'lumotlar bo'lmasligi kerak
                 .andExpect(jsonPath("$.reporterEmail").doesNotExist())
-                .andExpect(jsonPath("$.history[0].note").doesNotExist());
+                .andExpect(jsonPath("$.history[0].changedBy").doesNotExist())
+                // Birinchi yozuvning izohi tizimniki: u bazada emas, joriy tilga o'giriladi
+                .andExpect(jsonPath("$.history[0].note").value("Murojaat qabul qilindi"));
     }
 
     @Test
@@ -255,18 +257,18 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Ochiq ro'yxatdan o'tish yo'li mavjud emas")
     void publicRegistrationIsGone() throws Exception {
-        mockMvc.perform(json(post("/api/v1/auth/register"), """
+        mockMvc.perform(anonymous(json(post("/api/v1/auth/register"), """
                         {"fullName": "Ruxsatsiz Hisob", "email": "ruxsatsiz@test.uz", "password": "Parol12345!"}
-                        """))
+                        """)))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Noto'g'ri parol bilan kirish 401 qaytaradi")
     void wrongPasswordIsRejected() throws Exception {
-        mockMvc.perform(json(post("/api/v1/auth/login"), """
+        mockMvc.perform(anonymous(json(post("/api/v1/auth/login"), """
                         {"email": "%s", "password": "notogriparol"}
-                        """.formatted(ADMIN_EMAIL)))
+                        """.formatted(ADMIN_EMAIL))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -311,7 +313,10 @@ class ComplaintFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESOLVED"))
                 .andExpect(jsonPath("$.officialResponse").isNotEmpty())
-                .andExpect(jsonPath("$.history[0].note").doesNotExist());
+                // Xodim yozgan izoh ochiq tarixning birorta yozuvida ham yo'q
+                .andExpect(jsonPath("$.history[?(@.note == 'Ichki izoh: tekshiruv boshlandi')]").isEmpty())
+                // Kim o'zgartirgani ham ichki ma'lumot
+                .andExpect(jsonPath("$.history[0].changedBy").doesNotExist());
     }
 
     // ------------------------------------------------------------- reyestr (xodimlar uchun)

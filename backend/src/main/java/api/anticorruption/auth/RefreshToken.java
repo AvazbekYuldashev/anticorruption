@@ -3,6 +3,8 @@ package api.anticorruption.auth;
 import api.anticorruption.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -28,8 +30,9 @@ import java.time.Instant;
  * (parol xeshlari bilan bir xil mantiq).
  *
  * <p>Har bir yangilashda joriy token bekor qilinadi va yangisi beriladi
- * (rotation). Bekor qilingan token qaytadan kelsa - bu o'g'irlanish
- * alomati: o'sha foydalanuvchining barcha tokenlari bekor qilinadi.
+ * (rotation). Aynan shunday aylantirilgan token qaytadan kelsa - bu
+ * o'g'irlanish alomati: o'sha foydalanuvchining barcha tokenlari bekor
+ * qilinadi. Qarang {@link RefreshTokenRevocation}.
  */
 @Entity
 @Table(
@@ -64,6 +67,16 @@ public class RefreshToken {
     /** Bekor qilingan vaqt; null bo'lsa token hali amal qiladi. */
     @Column(name = "revoked_at")
     private Instant revokedAt;
+
+    /**
+     * Bekor qilinish sababi; token amal qilayotgan bo'lsa null.
+     *
+     * <p>Faqat aylantirilgan tokenning qaytib kelishi o'g'irlanish alomati -
+     * qarang {@link RefreshTokenRevocation}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "revoked_reason", length = 20)
+    private RefreshTokenRevocation revokedReason;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

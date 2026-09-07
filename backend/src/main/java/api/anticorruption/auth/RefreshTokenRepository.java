@@ -17,10 +17,19 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      *
      * <p>Ikki holatda kerak: parol almashtirilganda va o'g'irlangan token
      * aniqlanganda - ikkalasida ham eski seanslar darrov uzilishi kerak.
+     * Ikkalasi ham ataylab uzish, shuning uchun sabab har doim
+     * {@link RefreshTokenRevocation#REVOKED}: bu tokenlarning qaytib kelishi
+     * boshqa seanslarni uzishga asos bo'lmaydi.
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update RefreshToken t set t.revokedAt = :now where t.user.id = :userId and t.revokedAt is null")
-    int revokeAllForUser(@Param("userId") Long userId, @Param("now") Instant now);
+    @Query("""
+            update RefreshToken t
+               set t.revokedAt = :now, t.revokedReason = :reason
+             where t.user.id = :userId and t.revokedAt is null
+            """)
+    int revokeAllForUser(@Param("userId") Long userId,
+                         @Param("now") Instant now,
+                         @Param("reason") RefreshTokenRevocation reason);
 
     /** Eskirgan yozuvlar jadvalda to'planib qolmasin. */
     void deleteByUserIdAndExpiresAtBefore(Long userId, Instant cutoff);

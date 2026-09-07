@@ -26,12 +26,16 @@ Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
 | **Yangiliklar** | Blokli muharrir (sarlavha, formatlangan matn, yakka rasm, albom), qoralama/chop etish, muqova, qidiruv, ko'rishlar hisobi |
 | **Xodimlar** | Lavozim, ilmiy daraja, qabul vaqti, surat, tartib raqami |
 | **So'rovnomalar** | Cheklanmagan sondagi savol, mavsumiy muddat, qo'lda to'xtatish, qayta o'tkazish, takroriy ovozdan himoya, savollar kesimidagi statistika |
-| **Bo'lim haqida** | Admin panelidan tahrirlanadigan istalgan sondagi matnli sahifa |
-| **Foydali linklar** | Guruhlangan, tartiblangan havolalar |
+| **Bo'lim haqida** | Admin panelidan tahrirlanadigan sarlavha, matn, vazifalar ro'yxati va maqsad |
 | **Reytinglar** | Fakultetlar kesimi statistikadan avtomatik hisoblanadi |
 
-Qo'shimcha: ro'yxatdan o'tish va rollar (`CITIZEN` / `MODERATOR` / `ADMIN`),
-holat tarixi, email xabarnomalar, Swagger hujjatlari.
+Qo'shimcha: rollar (`CITIZEN` / `MODERATOR` / `ADMIN`), holat tarixi,
+email xabarnomalar, Swagger hujjatlari.
+
+> **Eslatma.** Statik sahifalar (`/pages`) va foydali havolalar (`/links`)
+> loyihada yo'q: ular `9b97ffa` commitida entity, endpoint va jadval bilan
+> birga olib tashlangan. O'sha commit xabari faqat papkalarni ajratish haqida
+> gapiradi, shuning uchun bu ataylab qilinganmi yoki tasodifanmi — aniq emas.
 
 ## Ishga tushirish
 
@@ -103,7 +107,7 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 | `GET` | `/api/v1/reference` | Kategoriya, fakultet, maqom ro'yxatlari |
 | `GET` | `/api/v1/stats/public` · `/stats/faculty-rating` | Statistika va fakultetlar kesimi |
 | `GET` | `/api/v1/news` · `/news/{slug}` | Yangiliklar |
-| `GET` | `/api/v1/staff` · `/pages` · `/pages/{slug}` · `/links` | Xodimlar, sahifalar, havolalar |
+| `GET` | `/api/v1/staff` · `/about` | Xodimlar va "Bo'lim haqida" |
 | `GET` | `/api/v1/polls` · `/polls/{id}` | So'rovnomalar |
 | `POST` | `/api/v1/polls/{id}/vote` | Butun so'rovnomaga bir marta javob berish |
 | `GET` | `/api/v1/media/{fayl}` | Yangilik va xodim rasmlari |
@@ -122,7 +126,7 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 | `PATCH` | `/api/v1/admin/complaints/{id}/status` | Holatni o'zgartirish |
 | `PATCH` | `/api/v1/admin/complaints/{id}/assign` | Mas'ul xodimni belgilash |
 | `PATCH` | `/api/v1/admin/complaints/{id}/register-visibility` | Reyestrdan yashirish |
-| — | `/api/v1/admin/news` · `/staff` · `/pages` · `/links` · `/polls` | Kontent CRUD |
+| — | `/api/v1/admin/news` · `/staff` · `/about` · `/polls` | Kontent CRUD |
 | `GET` | `/api/v1/admin/polls/{id}/statistics` | So'rovnoma hisoboti |
 | `PATCH` | `/api/v1/admin/polls/{id}/stopped` | Qo'lda to'xtatish yoki davom ettirish |
 | `POST` | `/api/v1/admin/polls/{id}/restart` | Qayta o'tkazish (yangi o'tkazish ochadi) |
@@ -296,14 +300,32 @@ bo'lakka ajratilgan (lazy yuklanadi). Batafsil: [frontend/README.md](frontend/RE
 
 ## Testlar
 
+**Backend** — 121 ta integratsion test, 8 ta sinf: seans oqimi, murojaat
+oqimi, universitet tuzilmasi, sayt bo'limlari, so'rovnomalar, foydalanuvchilar,
+tarjimalar va kontekst yuklanishi.
+
 ```bash
 cd backend
 ./mvnw test
 ```
 
-77 ta integratsion test, 6 ta sinf: murojaat oqimi, universitet tuzilmasi,
-sayt bo'limlari, so'rovnomalar, tarjimalar va kontekst yuklanishi. Testlar
-xotiradagi H2 da ishlaydi — PostgreSQL kerak emas.
+Testlar xotiradagi H2 da ishlaydi — PostgreSQL kerak emas. Sxemani u yerda
+Hibernate yaratadi, ya'ni **migratsiyalar testlarda sinalmaydi**: yangi
+migratsiya yozilsa, uni haqiqiy PostgreSQL da bir marta tekshirib ko'rish
+kerak (ishlab chiqarishda `ddl-auto=validate`).
+
+**Frontend** — 21 ta test, 3 ta fayl (Vitest + jsdom): seans qatlami (CSRF
+sarlavhasi, 401 dan keyin avtomatik yangilash, bir vaqtdagi so'rovlarning
+bitta yangilashga ulanishi), API mijozi va matn formatlash.
+
+```bash
+cd frontend
+npm test
+```
+
+> **Bo'shliq.** `@testing-library/react` o'rnatilgan, lekin hali birorta
+> testda ishlatilmagan — komponent va foydalanuvchi oqimi testlari yozilmagan.
+> Hozirgi qoplama funksiya darajasida.
 
 ## Ma'lumotlar bazasi migratsiyalari
 
@@ -312,10 +334,20 @@ Sxemani Hibernate emas, **Flyway** boshqaradi:
 avtomatik qo'llanadi, Hibernate esa faqat entity va jadval mosligini
 tekshiradi (`ddl-auto=validate`).
 
+Hozirgi migratsiyalar:
+
+| Fayl | Nimani qo'shadi |
+|---|---|
+| `V1__baseline.sql` | Dastlabki 17 ta jadval |
+| `V2__refresh_tokens.sql` | Yangilash tokenlari |
+| `V3__news_language.sql` | Yangilikka til va `translation_group` |
+| `V4__content_translations.sql` | "Bo'lim haqida" va xodim tarjimalari |
+| `V5__refresh_token_revocation_reason.sql` | Token nega bekor qilingani |
+
 **Entity o'zgartirilsa** yangi migratsiya fayli yozilishi shart:
 
 ```sql
--- backend/src/main/resources/db/migration/V2__xodimga_telegram_qoshildi.sql
+-- backend/src/main/resources/db/migration/V6__xodimga_telegram_qoshildi.sql
 alter table staff_members add column telegram varchar(120);
 ```
 
@@ -455,9 +487,15 @@ ham token o'g'irlanmaydi.
 
 - Kirish tokeni **qisqa muddatli**, chunki uni bekor qilib bo'lmaydi. Yangilash
   tokeni esa bazada turadi (faqat SHA-256 xeshi) va istalgan payt bekor qilinadi.
-- Har bir yangilashda token **almashadi** (rotation). Bekor qilingan token
-  qaytadan kelsa — bu o'g'irlanish alomati: o'sha foydalanuvchining barcha
-  seanslari uziladi.
+- Har bir yangilashda token **almashadi** (rotation). **Aylantirilgan** token
+  qaytadan kelsa — bu o'g'irlanish alomati (mijozda uning o'rnida yangisi
+  turishi kerak edi): o'sha foydalanuvchining barcha seanslari uziladi.
+- Ataylab bekor qilingan token (chiqish, parol almashtirish) qaytib kelsa esa
+  shunchaki rad etiladi — bu eskirgan cookie, boshqa seanslarga tegilmaydi.
+  Shuning uchun token nega bekor qilingani bazada saqlanadi
+  (`refresh_tokens.revoked_reason`, `V5` migratsiyasi). Aks holda parolini
+  almashtirgan odam boshqa qurilmasining navbatdagi yangilashi tufayli o'zi
+  ham tizimdan chiqib qolardi.
 - Parol almashtirilganda boshqa qurilmalardagi seanslar uziladi, joriy qurilma
   esa yangi cookie'lar oladi.
 - Cookie avtomatik yuborilgani uchun **CSRF himoyasi majburiy**: yozuv so'rovi
@@ -585,7 +623,18 @@ bajariladi (`AntivirusScanner`).
 
 ## Keyingi qadamlar
 
-Ro'yxatdagi ishlar bajarildi. Keyingi nomzodlar:
+Ochiq qolgan ishlar:
+
+- **Komponent testlari** — `@testing-library/react` o'rnatilgan, lekin
+  ishlatilmagan. Asosiy oqimlar (kirish, murojaat yuborish, ovoz berish)
+  hali test bilan qoplanmagan.
+- **Statik sahifalar** — qaytarilsinmi yoki yo'qligicha qolsinmi, hal
+  qilinmagan (yuqoridagi eslatmaga qarang).
+
+Keyingi nomzodlar:
 
 - **Zaxira nusxa** — baza va `uploads/` uchun jadval bo'yicha nusxa olish.
 - **Monitoring** — `/actuator/health` ni kuzatuvchi xizmatga ulash.
+- **Antivirusni yoqish** — kod tayyor, lekin `clamd` ko'tarilib,
+  `APP_ANTIVIRUS_ENABLED=true` qilinmagan.
+- **Redis** — chegara ombori kodda bor, standart holatda hamon `memory`.
