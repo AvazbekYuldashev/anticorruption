@@ -21,7 +21,12 @@ import {
   Typography,
 } from '@mui/material';
 import { pollsApi, type SavePollPayload } from '../api/polls';
-import type { PollQuestionResponse, PollResponse } from '../api/types';
+import type {
+  PollQuestionResponse,
+  PollResponse,
+  PollType,
+  QuizStatisticsResponse,
+} from '../api/types';
 import { formatDateTime } from '../lib/format';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
 import {
@@ -70,9 +75,25 @@ function fromLocalInput(value: string): string | null {
   return value ? new Date(value).toISOString() : null;
 }
 
+/** So'rovnomalar bo'limi. */
 export function PollsAdminPage() {
+  return <PollsAdminPageFor type="SURVEY" />;
+}
+
+/** Testlar (viktorinalar) bo'limi - o'sha sahifa, faqat turi boshqa. */
+export function QuizzesAdminPage() {
+  return <PollsAdminPageFor type="QUIZ" />;
+}
+
+/**
+ * So'rovnoma va test bir xil boshqariladi: savollar, variantlar, muddat,
+ * to'xtatish va qayta o'tkazish. Yagona farqi - testda har bir variantda
+ * "to'g'ri javob" belgisi bo'ladi va ro'yxatlar turiga qarab ajratiladi.
+ */
+function PollsAdminPageFor({ type }: { type: PollType }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const quiz = type === 'QUIZ';
 
   const [dialog, setDialog] = useState<{ id: number | null; form: PollForm } | null>(null);
   const [deleting, setDeleting] = useState<{ id: number; title: string } | null>(null);
@@ -81,7 +102,7 @@ export function PollsAdminPage() {
     { id: number; title: string; startsAt: string; endsAt: string } | null
   >(null);
 
-  const query = useQuery({ queryKey: ['admin', 'polls'], queryFn: pollsApi.all });
+  const query = useQuery({ queryKey: ['admin', 'polls', type], queryFn: () => pollsApi.all(type) });
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ['admin', 'polls'] });
@@ -94,6 +115,7 @@ export function PollsAdminPage() {
       const payload: SavePollPayload = {
         title: form.title,
         description: form.description,
+        type,
         active: form.active,
         startsAt: fromLocalInput(form.startsAt),
         endsAt: fromLocalInput(form.endsAt),
@@ -140,10 +162,10 @@ export function PollsAdminPage() {
 
   return (
     <AdminPage
-      title={t('admin.pollsTitle')}
+      title={t(quiz ? 'admin.testsTitle' : 'admin.pollsTitle')}
       action={
         <Button variant="contained" onClick={() => setDialog({ id: null, form: emptyForm() })}>
-          {t('admin.addPoll')}
+          {t(quiz ? 'admin.addTest' : 'admin.addPoll')}
         </Button>
       }
     >
@@ -193,14 +215,18 @@ export function PollsAdminPage() {
         <FormDialog
           open
           maxWidth="md"
-          title={dialog.id === null ? t('admin.addPoll') : t('admin.editPoll')}
+          title={
+            dialog.id === null
+              ? t(quiz ? 'admin.addTest' : 'admin.addPoll')
+              : t(quiz ? 'admin.editTest' : 'admin.editPoll')
+          }
           busy={save.isPending}
           error={save.error}
           onClose={() => setDialog(null)}
           onSubmit={() => save.mutate()}
         >
           <TextField
-            label={t('admin.fieldPollTitle')}
+            label={t(quiz ? 'admin.fieldTestTitle' : 'admin.fieldPollTitle')}
             value={dialog.form.title}
             onChange={(event) =>
               setDialog({ ...dialog, form: { ...dialog.form, title: event.target.value } })
@@ -259,6 +285,7 @@ export function PollsAdminPage() {
 
             <PollQuestionsEditor
               value={dialog.form.questions}
+              quiz={quiz}
               onChange={(questions) => setDialog({ ...dialog, form: { ...dialog.form, questions } })}
             />
           </Box>
@@ -456,7 +483,12 @@ function QuestionResults({ question }: { question: PollQuestionResponse }) {
         {question.options.map((option) => (
           <Box key={option.id}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2">{option.text}</Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                <Typography variant="body2">{option.text}</Typography>
+                {option.correct && (
+                  <Chip size="small" color="success" label={t('admin.correctAnswer')} />
+                )}
+              </Stack>
               <Typography variant="body2" color="text.secondary">
                 {option.voteCount} · {option.percentage}%
               </Typography>
@@ -464,6 +496,61 @@ function QuestionResults({ question }: { question: PollQuestionResponse }) {
             <LinearProgress
               variant="determinate"
               value={option.percentage}
+              sx={{ height: 6, borderRadius: 3 }}
+            />
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+/**
+ * Test bo'yicha ball hisoboti - faqat admin panelida ko'rinadi.
+ *
+ * <p>Savol to'liq to'g'ri hisoblanadi: ishtirokchi barcha to'g'ri
+ * variantlarni belgilagan va ortiqchasini tanlamagan bo'lsa.
+ */
+function QuizStatistics({ stats }: { stats: QuizStatisticsResponse }) {
+  const { t } = useTranslation();
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+        {t('admin.quizStats')}
+      </Typography>
+
+      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
+        <Chip size="small" label={t('admin.quizParticipants', { count: stats.participants })} />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={t('admin.quizAverage', { value: stats.averagePercentage })}
+        />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={t('admin.quizAverageCorrect', { value: stats.averageCorrect })}
+        />
+      </Stack>
+
+      <Stack spacing={1.5}>
+        {stats.questions.map((question) => (
+          <Box key={question.questionId}>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="body2">{question.text}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t('admin.quizCorrectCount', {
+                  correct: question.correctCount,
+                  answered: question.answeredCount,
+                })}{' '}
+                · {question.correctRate}%
+              </Typography>
+            </Stack>
+            <LinearProgress
+              variant="determinate"
+              color="success"
+              value={question.correctRate}
               sx={{ height: 6, borderRadius: 3 }}
             />
           </Box>
@@ -518,6 +605,8 @@ function PollStatisticsDialog({ pollId, onClose }: { pollId: number; onClose: ()
                   {t('admin.lastVote')}: {formatDateTime(query.data.lastVoteAt)}
                 </Typography>
               </Box>
+
+              {query.data.quiz && <QuizStatistics stats={query.data.quiz} />}
 
               <Divider />
 

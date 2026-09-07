@@ -275,25 +275,149 @@ bo'lakka ajratilgan (lazy yuklanadi). Batafsil: [frontend/README.md](frontend/RE
 sayt bo'limlari, so'rovnomalar, tarjimalar va kontekst yuklanishi. Testlar
 xotiradagi H2 da ishlaydi — PostgreSQL kerak emas.
 
+## Ma'lumotlar bazasi migratsiyalari
+
+Sxemani Hibernate emas, **Flyway** boshqaradi:
+`src/main/resources/db/migration/`. Ilova ishga tushganda migratsiyalar
+avtomatik qo'llanadi, Hibernate esa faqat entity va jadval mosligini
+tekshiradi (`ddl-auto=validate`).
+
+**Entity o'zgartirilsa** yangi migratsiya fayli yozilishi shart:
+
+```sql
+-- src/main/resources/db/migration/V2__xodimga_telegram_qoshildi.sql
+alter table staff_members add column telegram varchar(120);
+```
+
+Qoidalar:
+
+- chop etilgan migratsiyani tahrirlab bo'lmaydi — Flyway uning nazorat
+  yig'indisini saqlaydi va o'zgargani darrov xatolik beradi; xatoni
+  yangi migratsiya bilan tuzatiladi;
+- mavjud (migratsiyasiz yaratilgan) baza birinchi ishga tushishda
+  avtomatik "baseline" qilinadi — jadvallar qaytadan yaratilmaydi;
+- sinovlar xotiradagi H2 da ishlaydi, u yerda sxemani Hibernate yaratadi.
+
+Ishlab chiqish paytida tez tajriba qilish uchun (tavsiya etilmaydi):
+`DDL_AUTO=update` muhit o'zgaruvchisi.
+
+## Ishlab chiqarishga chiqarish
+
+### 1. Profil va maxfiy qiymatlar
+
+```bash
+java -jar anticorruption.jar --spring.profiles.active=prod
+```
+
+`prod` profili ([application-prod.properties](src/main/resources/application-prod.properties)):
+sxema tekshiruvi, Swagger yopiq, loglar faylga yoziladi va aylanadi,
+javoblar siqiladi, so'rov chegarasi yoqilgan.
+
+Maxfiy qiymatlar faqat muhit o'zgaruvchilari orqali beriladi:
+
+```bash
+export DB_URL=jdbc:postgresql://localhost:5432/anticorruption
+export DB_USERNAME=anticorruption
+export DB_PASSWORD='...'
+export APP_JWT_SECRET="$(openssl rand -base64 48)"
+export APP_POLL_SALT="$(openssl rand -base64 32)"
+export APP_ADMIN_PASSWORD='...'
+export APP_CORS_ORIGINS=https://korrupsiya.astiedu.uz
+export APP_STORAGE_LOCATION=/var/lib/anticorruption/uploads
+```
+
+Biror qiymat ishlab chiqish holatida qolsa, ilova **ishga tushmaydi**:
+[`ProductionSafetyCheck`](src/main/java/api/anticorruption/config/ProductionSafetyCheck.java)
+JWT kaliti, ovoz tuzi, administrator paroli, CORS manzillari va
+`ddl-auto` ni tekshiradi.
+
+### 2. Teskari proksi va HTTPS
+
+Ilova HTTP da 8080 portda turadi, TLS ni nginx tugatadi. `prod` profilida
+`server.forward-headers-strategy=framework` yoqilgan — mijozning haqiqiy
+manzili `X-Forwarded-For` dan olinadi (so'rov chegarasi ham shunga tayanadi).
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name korrupsiya.astiedu.uz;
+
+    # Frontend: `npm run build` natijasi
+    root /var/www/anticorruption;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Tashqaridan kelgan qiymat almashtiriladi - aks holda chegarani aldash mumkin
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 60m;
+    }
+}
+```
+
+Frontendni yig'ish: `cd frontend && npm ci && npm run build` → `dist/`
+papkasini `/var/www/anticorruption` ga qo'ying.
+
+### 3. Xizmat sifatida ishga tushirish (systemd)
+
+```ini
+[Unit]
+Description=Korrupsiyaga qarshi kurash portali
+After=network.target postgresql.service
+
+[Service]
+User=anticorruption
+EnvironmentFile=/etc/anticorruption/env
+ExecStart=/usr/bin/java -jar /opt/anticorruption/anticorruption.jar --spring.profiles.active=prod
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`/etc/anticorruption/env` faylining huquqlari `600` bo'lsin — maxfiy
+qiymatlar shu yerda.
+
+### 4. Zaxira nusxa
+
+```bash
+pg_dump -U anticorruption anticorruption | gzip > /backup/db-$(date +%F).sql.gz
+tar czf /backup/uploads-$(date +%F).tar.gz /var/lib/anticorruption/uploads
+```
+
+Bazadan tashqari **yuklangan fayllar** ham zaxiralanishi kerak: ular
+bazada emas, diskda yotadi.
+
+### 5. Chiqarishdan oldingi ro'yxat
+
+- [x] Flyway migratsiyalari, `ddl-auto=validate`
+- [x] Swagger ishlab chiqarishda yopiq
+- [x] Xavfsizlik sarlavhalari: HSTS, nosniff, frame-deny, CSP, referrer-policy
+- [x] So'rov chegarasi (kirish, murojaat yuborish, ovoz berish)
+- [x] Fayl mazmuni turga mos kelishini tekshirish (magic bytes)
+- [x] Maxfiy qiymatlar tekshiruvi (ishga tushishda)
+- [x] Loglar faylga, `show-sql` o'chirilgan
+- [ ] `APP_MAIL_ENABLED=true` va SMTP sozlamalari
+- [ ] HTTPS sertifikati (certbot)
+- [ ] Zaxira nusxa jadvali (cron)
+- [ ] Monitoring: `/actuator/health` ni kuzatuvchi xizmatga ulash
+
 ## Keyingi qadamlar
 
-- **Flyway migratsiyalari.** Hozir `spring.jpa.hibernate.ddl-auto=update`.
-  Ishlab chiqarishga chiqishdan oldin migratsiyalarga o'tish kerak.
-- **Frontend.** API tayyor, CORS sozlangan (`app.cors.allowed-origins`).
-- **Rate limiting** ochiq `POST /api/v1/complaints` va ovoz berish yo'llariga.
 - **Refresh token** — hozir faqat 12 soatlik access token bor.
-- **Fayllarni antivirus tekshiruvi.**
-- **Kontent tarjimalari** — hozir tizim xabarlari to'rt tilda, lekin yangilik
-  va sahifa matnlari bitta tilda. Kerak bo'lsa tarjima jadvallari qo'shiladi.
-
-## Ishlab chiqarishga chiqarishdan oldin
-
-- [ ] `APP_JWT_SECRET` — tasodifiy, kamida 32 bayt
-- [ ] `APP_POLL_SALT` — tasodifiy
-- [ ] `APP_ADMIN_PASSWORD` — standart paroldan voz keching
-- [ ] `DB_PASSWORD` — muhit o'zgaruvchisi orqali, faylda emas
-- [ ] `APP_CORS_ORIGINS` — faqat haqiqiy frontend manzillari
-- [ ] `APP_MAIL_ENABLED=true` va SMTP sozlamalari
-- [ ] HTTPS (reverse proxy orqali)
-- [ ] `spring.jpa.hibernate.ddl-auto=validate` + Flyway
-- [ ] `spring.jpa.show-sql=false`
+- **Fayllarni antivirus tekshiruvi** (ClamAV) — hozir tur va imzo tekshiriladi.
+- **So'rov chegarasi umumiy omborda** — hozir xotirada, ya'ni bitta nusxa uchun.
+  Bir nechta serverga chiqilsa Redis kerak bo'ladi.
+- **Kontent tarjimalari** — tizim xabarlari to'rt tilda, yangilik va sahifa
+  matnlari esa bitta tilda. Kerak bo'lsa tarjima jadvallari qo'shiladi.
+- **JWT ni HttpOnly cookie ga o'tkazish** — hozir `localStorage` da
+  ([frontend/src/lib/session.ts](frontend/src/lib/session.ts) da izohlangan).

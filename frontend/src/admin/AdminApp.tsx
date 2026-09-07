@@ -29,9 +29,8 @@ import { FacultiesPage } from './FacultiesPage';
 import { NewsAdminPage } from './NewsAdminPage';
 import { NewsDetailAdminPage } from './NewsDetailAdminPage';
 import { StaffAdminPage } from './StaffAdminPage';
-import { PagesAdminPage } from './PagesAdminPage';
-import { LinksAdminPage } from './LinksAdminPage';
-import { PollsAdminPage } from './PollsAdminPage';
+import { AboutAdminPage } from './AboutAdminPage';
+import { PollsAdminPage, QuizzesAdminPage } from './PollsAdminPage';
 
 const DRAWER_WIDTH = 240;
 
@@ -58,11 +57,13 @@ function useMenuItems() {
   const items = [
     { to: '/admin', label: t('admin.navDashboard'), end: true },
     { to: '/admin/complaints', label: t('admin.navComplaints') },
+    // Reyestr admin panelining tashqarisida, lekin faqat xodimlar ko'radi.
+    { to: '/register', label: t('nav.register') },
     { to: '/admin/news', label: t('admin.navNews') },
     { to: '/admin/staff', label: t('admin.navStaff') },
-    { to: '/admin/pages', label: t('admin.navPages') },
-    { to: '/admin/links', label: t('admin.navLinks') },
+    { to: '/admin/about', label: t('admin.navAbout') },
     { to: '/admin/polls', label: t('admin.navPolls') },
+    { to: '/admin/tests', label: t('admin.navTests') },
   ];
 
   // Foydalanuvchilar va tuzilma faqat administratorga ochiq -
@@ -230,9 +231,9 @@ export function AdminApp() {
               <Route path="news" element={<NewsAdminPage />} />
               <Route path="news/:id" element={<NewsDetailAdminPage />} />
               <Route path="staff" element={<StaffAdminPage />} />
-              <Route path="pages" element={<PagesAdminPage />} />
-              <Route path="links" element={<LinksAdminPage />} />
+              <Route path="about" element={<AboutAdminPage />} />
               <Route path="polls" element={<PollsAdminPage />} />
+              <Route path="tests" element={<QuizzesAdminPage />} />
 
               {/* Faqat administrator */}
               <Route element={<ProtectedRoute require="admin" />}>

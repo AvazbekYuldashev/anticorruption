@@ -1,10 +1,12 @@
 import { api } from './client';
-import type { PollResponse, PollStatisticsResponse } from './types';
+import type { PollResponse, PollStatisticsResponse, PollType } from './types';
 
 /** Saqlashda yuboriladigan variant. `id` bo'lsa mavjud variant ovozlari bilan saqlanadi. */
 export interface SavePollOption {
   id?: number | null;
   text: string;
+  /** Faqat testda: shu variant to'g'ri javobmi. */
+  correct?: boolean;
 }
 
 export interface SavePollQuestion {
@@ -18,6 +20,8 @@ export interface SavePollQuestion {
 export interface SavePollPayload {
   title: string;
   description?: string;
+  /** So'rovnomami yoki test; ko'rsatilmasa so'rovnoma. */
+  type?: PollType;
   active?: boolean;
   /** null bo'lsa muddat cheklovi yo'q. */
   startsAt?: string | null;
@@ -32,7 +36,7 @@ export interface PollAnswer {
 }
 
 export const pollsApi = {
-  active: () => api.get<PollResponse[]>('/polls'),
+  active: (type?: PollType) => api.get<PollResponse[]>('/polls', { query: { type } }),
 
   detail: (id: number) => api.get<PollResponse>(`/polls/${id}`),
 
@@ -40,7 +44,7 @@ export const pollsApi = {
     api.post<PollResponse>(`/polls/${id}/vote`, { answers }),
 
   // ------------------------------------------------------------- admin
-  all: () => api.get<PollResponse[]>('/admin/polls'),
+  all: (type?: PollType) => api.get<PollResponse[]>('/admin/polls', { query: { type } }),
 
   statistics: (id: number) => api.get<PollStatisticsResponse>(`/admin/polls/${id}/statistics`),
 

@@ -48,39 +48,60 @@ export function NewsListPage() {
           <EmptyState message={t('news.empty')} />
         ) : (
           <>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {/*
+              Kartochkalar ikki ustunda: sarlavha uzun bo'lgani uchun uchta
+              ustunda satrlar juda tor chiqadi. Har birida sarlavha, qisqa
+              mazmun, manba-sana-ko'rishlar qatori va o'qish tugmasi bor.
+            */}
+            <div className="grid gap-6 lg:grid-cols-2">
               {query.data.content.map((item) => (
-                <Link
+                <article
                   key={item.id}
-                  to={`/news/${item.slug}`}
-                  className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md"
+                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <div className="relative">
-                    {item.coverImageUrl ? (
-                      <img src={item.coverImageUrl} alt="" className="h-44 w-full object-cover" />
-                    ) : (
-                      <div className="h-44 w-full bg-gradient-to-br from-brand-100 to-brand-50" />
-                    )}
-                    {/* Albom borligi ro'yxatdayoq ko'rinib tursin. */}
-                    {item.imageCount > 0 && (
-                      <span className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
-                        {t('news.imageCount', { count: item.imageCount })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h2 className="font-medium text-slate-900">{item.title}</h2>
+                  {item.coverImageUrl && (
+                    <Link to={`/news/${item.slug}`} className="relative block">
+                      <img src={item.coverImageUrl} alt="" className="h-48 w-full object-cover" />
+                      {item.imageCount > 0 && (
+                        <span className="absolute right-3 bottom-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white">
+                          {t('news.imageCount', { count: item.imageCount })}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+
+                  <div className="flex flex-1 flex-col p-6">
+                    <h2 className="text-lg leading-snug font-bold text-slate-900">
+                      <Link to={`/news/${item.slug}`} className="hover:text-brand-700">
+                        {item.title}
+                      </Link>
+                    </h2>
+
                     {item.summary && (
-                      <p className="mt-2 line-clamp-3 flex-1 text-sm text-slate-600">
+                      <p className="mt-3 line-clamp-2 text-sm text-slate-500 italic">
                         {item.summary}
                       </p>
                     )}
-                    <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+
+                    <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                      <span className="font-semibold text-brand-600">{t('site.badge')}</span>
+                      <span aria-hidden>•</span>
                       <span>{formatDate(item.publishedAt)}</span>
+                      <span aria-hidden>•</span>
                       <span>{t('news.views', { count: item.viewCount })}</span>
                     </div>
+
+                    <div className="mt-5 pt-1">
+                      <Link
+                        to={`/news/${item.slug}`}
+                        className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                      >
+                        {t('news.readMore')}
+                        <span aria-hidden>→</span>
+                      </Link>
+                    </div>
                   </div>
-                </Link>
+                </article>
               ))}
             </div>
 

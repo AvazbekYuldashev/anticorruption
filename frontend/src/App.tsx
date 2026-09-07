@@ -5,17 +5,50 @@ import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 
+/*
+ * Bosh sahifa va 404 darrov kerak - ular asosiy bo'lakda qoladi.
+ * Qolgan sahifalar alohida bo'laklarga ajratiladi va faqat ochilganda
+ * yuklanadi: birinchi ochilishda yuklanadigan kod shuncha kichik bo'ladi.
+ */
 import { HomePage } from './pages/HomePage';
-import { SubmitComplaintPage } from './pages/SubmitComplaintPage';
-import { TrackComplaintPage } from './pages/TrackComplaintPage';
-import { PublicRegisterPage } from './pages/PublicRegisterPage';
-import { NewsDetailPage, NewsListPage } from './pages/NewsPages';
-import { StaffPage } from './pages/StaffPage';
-import { PollsPage } from './pages/PollsPage';
-import { StatsPage } from './pages/StatsPage';
-import { LinksPage, NotFoundPage, StaticPageView } from './pages/SimplePages';
-import { LoginPage, SignUpPage } from './pages/AuthPages';
-import { MyComplaintDetailPage, MyComplaintsPage } from './pages/MyComplaintsPage';
+import { NotFoundPage } from './pages/SimplePages';
+
+const SubmitComplaintPage = lazy(() =>
+  import('./pages/SubmitComplaintPage').then((m) => ({ default: m.SubmitComplaintPage })),
+);
+const TrackComplaintPage = lazy(() =>
+  import('./pages/TrackComplaintPage').then((m) => ({ default: m.TrackComplaintPage })),
+);
+const PublicRegisterPage = lazy(() =>
+  import('./pages/PublicRegisterPage').then((m) => ({ default: m.PublicRegisterPage })),
+);
+const NewsListPage = lazy(() =>
+  import('./pages/NewsPages').then((m) => ({ default: m.NewsListPage })),
+);
+const NewsDetailPage = lazy(() =>
+  import('./pages/NewsPages').then((m) => ({ default: m.NewsDetailPage })),
+);
+const StaffPage = lazy(() => import('./pages/StaffPage').then((m) => ({ default: m.StaffPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
+const PollsPage = lazy(() => import('./pages/PollsPage').then((m) => ({ default: m.PollsPage })));
+const PollDetailsPage = lazy(() =>
+  import('./pages/PollsPage').then((m) => ({ default: m.PollDetailsPage })),
+);
+const QuizzesPage = lazy(() =>
+  import('./pages/PollsPage').then((m) => ({ default: m.QuizzesPage })),
+);
+const QuizDetailsPage = lazy(() =>
+  import('./pages/PollsPage').then((m) => ({ default: m.QuizDetailsPage })),
+);
+const StatsPage = lazy(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })));
+const LoginPage = lazy(() => import('./pages/AuthPages').then((m) => ({ default: m.LoginPage })));
+const SignUpPage = lazy(() => import('./pages/AuthPages').then((m) => ({ default: m.SignUpPage })));
+const MyComplaintsPage = lazy(() =>
+  import('./pages/MyComplaintsPage').then((m) => ({ default: m.MyComplaintsPage })),
+);
+const MyComplaintDetailPage = lazy(() =>
+  import('./pages/MyComplaintsPage').then((m) => ({ default: m.MyComplaintDetailPage })),
+);
 
 /*
  * Admin panel alohida bo'lakka ajratilgan: u MUI ga tayanadi va oddiy
@@ -30,20 +63,32 @@ export function App() {
   return (
     <Routes>
       {/* Ommaviy sayt */}
-      <Route element={<Layout />}>
+      <Route
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Layout />
+          </Suspense>
+        }
+      >
         <Route index element={<HomePage />} />
         <Route path="submit" element={<SubmitComplaintPage />} />
         <Route path="track" element={<TrackComplaintPage />} />
-        <Route path="register" element={<PublicRegisterPage />} />
         <Route path="news" element={<NewsListPage />} />
         <Route path="news/:slug" element={<NewsDetailPage />} />
         <Route path="staff" element={<StaffPage />} />
+        <Route path="about" element={<AboutPage />} />
         <Route path="polls" element={<PollsPage />} />
+        <Route path="polls/:id" element={<PollDetailsPage />} />
+        <Route path="tests" element={<QuizzesPage />} />
+        <Route path="tests/:id" element={<QuizDetailsPage />} />
         <Route path="stats" element={<StatsPage />} />
-        <Route path="links" element={<LinksPage />} />
-        <Route path="pages/:slug" element={<StaticPageView />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="signup" element={<SignUpPage />} />
+
+        {/* Murojaatlar reyestri - faqat xodimlar uchun */}
+        <Route element={<ProtectedRoute require="staff" />}>
+          <Route path="register" element={<PublicRegisterPage />} />
+        </Route>
 
         {/* Tizimga kirgan foydalanuvchi uchun */}
         <Route element={<ProtectedRoute />}>

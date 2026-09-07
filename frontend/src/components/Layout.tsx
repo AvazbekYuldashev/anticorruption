@@ -1,40 +1,31 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { contentApi } from '../api/content';
 import { useAuth } from '../auth/AuthContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
-/** Asosiy menyu. Matnli sahifalar bunga bazadan qo'shiladi. */
+/**
+ * Asosiy menyu.
+ *
+ * <p>Murojaatlar reyestri ochiq saytda ko'rsatilmaydi: u xizmat ro'yxati
+ * bo'lib qoldi va faqat xodimlarga ochiladi.
+ */
 function useNavItems() {
   const { t } = useTranslation();
+  const { isStaff } = useAuth();
 
-  // Sahifalar admin panelidan qo'shiladi, shuning uchun menyu ham
-  // dinamik: "Bo'lim haqida" kabi bo'limlar kod o'zgarmasdan paydo bo'ladi.
-  const { data: pages } = useQuery({
-    queryKey: ['pages', 'menu'],
-    queryFn: contentApi.pages,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const fixed = [
+  return [
     { to: '/', label: t('nav.home') },
     { to: '/submit', label: t('nav.submit') },
     { to: '/track', label: t('nav.track') },
-    { to: '/register', label: t('nav.register') },
+    ...(isStaff ? [{ to: '/register', label: t('nav.register') }] : []),
     { to: '/news', label: t('nav.news') },
     { to: '/staff', label: t('nav.staff') },
+    { to: '/about', label: t('nav.about') },
     { to: '/polls', label: t('nav.polls') },
+    { to: '/tests', label: t('nav.tests') },
     { to: '/stats', label: t('nav.stats') },
   ];
-
-  const dynamic = (pages ?? []).map((page) => ({
-    to: `/pages/${page.slug}`,
-    label: page.title,
-  }));
-
-  return [...fixed, ...dynamic, { to: '/links', label: t('nav.links') }];
 }
 
 function Header() {
@@ -238,53 +229,69 @@ function Footer() {
   const { t } = useTranslation();
 
   return (
-    <footer className="mt-16 border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <footer className="mt-16 bg-brand-900 text-brand-100">
+      <div className="mx-auto max-w-7xl px-4 py-10">
+        <div className="grid gap-8 md:grid-cols-3">
+          {/* Kim */}
           <div className="flex items-start gap-3">
             <img
               src="/brand/asti-logo-64.png"
               alt=""
-              width={40}
-              height={40}
-              className="h-10 w-10 shrink-0"
+              width={44}
+              height={44}
+              className="h-11 w-11 shrink-0 rounded-full bg-white/95 p-1"
             />
             <div>
-              <p className="text-sm font-semibold text-slate-800">{t('site.institute')}</p>
-              <p className="text-sm text-slate-700">{t('site.name')}</p>
-              <p className="mt-1 text-xs text-slate-500">{t('site.tagline')}</p>
-              <a
-                href="https://astiedu.uz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block text-xs text-brand-600 hover:underline"
-              >
-                {t('site.instituteSite')} · astiedu.uz
-              </a>
+              <p className="text-sm font-semibold tracking-wide text-white uppercase">
+                {t('site.institute')}
+              </p>
+              <p className="mt-0.5 text-sm text-brand-200">{t('site.name')}</p>
+              <p className="mt-2 text-xs text-brand-300">{t('site.tagline')}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-            <Link to="/submit" className="hover:text-brand-700">
-              {t('nav.submit')}
-            </Link>
-            <Link to="/track" className="hover:text-brand-700">
-              {t('nav.track')}
-            </Link>
-            <Link to="/register" className="hover:text-brand-700">
-              {t('nav.register')}
-            </Link>
-            <Link to="/stats" className="hover:text-brand-700">
-              {t('nav.stats')}
-            </Link>
+
+          {/* Bo'limlar */}
+          <nav className="text-sm">
+            <p className="mb-3 font-semibold text-white">{t('nav.menu')}</p>
+            <ul className="space-y-2">
+              {[
+                { to: '/submit', label: t('nav.submit') },
+                { to: '/track', label: t('nav.track') },
+                { to: '/news', label: t('nav.news') },
+                { to: '/about', label: t('nav.about') },
+                { to: '/stats', label: t('nav.stats') },
+              ].map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className="text-brand-200 transition-colors hover:text-white">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Aloqa */}
+          <div className="text-sm">
+            <p className="mb-3 font-semibold text-white">{t('site.instituteSite')}</p>
+            <a
+              href="https://astiedu.uz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-200 transition-colors hover:text-white"
+            >
+              astiedu.uz
+            </a>
           </div>
         </div>
-        <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-400">
+
+        <p className="mt-8 border-t border-white/10 pt-5 text-xs text-brand-300">
           © {new Date().getFullYear()} {t('site.institute')} · {t('site.official')}
         </p>
       </div>
     </footer>
   );
 }
+
 
 export function Layout() {
   return (

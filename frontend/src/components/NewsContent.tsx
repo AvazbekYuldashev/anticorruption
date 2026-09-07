@@ -32,6 +32,62 @@ function collectShots(blocks: NewsBlockResponse[]): Shot[] {
 }
 
 /**
+ * Chiqarish uchun guruh: oddiy blok yoki ketma-ket kelgan yakka rasmlar.
+ *
+ * <p>Yonma-yon turgan rasm bloklari ustma-ust cho'zilib ketmasligi kerak,
+ * shuning uchun ular bitta albom kabi to'rga yig'iladi. Yolg'iz rasm esa
+ * matn oqimida to'liq kenglikda qoladi.
+ */
+type Group =
+  | { kind: 'block'; block: NewsBlockResponse }
+  | { kind: 'images'; shots: Shot[] };
+
+function groupBlocks(blocks: NewsBlockResponse[]): Group[] {
+  const groups: Group[] = [];
+
+  for (const block of blocks) {
+    if (block.type === 'IMAGE' && block.url) {
+      const shot: Shot = { key: `b${block.id}`, url: block.url, caption: block.caption };
+      const last = groups.at(-1);
+
+      if (last?.kind === 'images') {
+        last.shots.push(shot);
+      } else {
+        groups.push({ kind: 'images', shots: [shot] });
+      }
+      continue;
+    }
+
+    groups.push({ kind: 'block', block });
+  }
+
+  return groups;
+}
+
+/** Bir xil o'lchamdagi nishonchalar to'ri: albom ham, rasmlar qatori ham shunday chiqadi. */
+function ImageGrid({ shots, onOpen }: { shots: Shot[]; onOpen: (key: string) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {shots.map((shot) => (
+        <button
+          key={shot.key}
+          type="button"
+          onClick={() => onOpen(shot.key)}
+          className="group overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+        >
+          <img
+            src={shot.url}
+            alt={shot.caption ?? ''}
+            loading="lazy"
+            className="aspect-[4/3] w-full object-cover transition-transform duration-200 group-hover:scale-105"
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Yangilik mazmunini bloklar tartibida chiqaradi: sarlavha, matn xatboshi,
  * yakka rasm va albom. Har qanday rasm bosilsa to'liq ekranda ochiladi.
  *
@@ -43,6 +99,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
   const { t } = useTranslation();
 
   const shots = useMemo(() => collectShots(blocks), [blocks]);
+  const groups = useMemo(() => groupBlocks(blocks), [blocks]);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const close = useCallback(() => setOpenIndex(null), []);
@@ -56,6 +113,11 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
       });
     },
     [shots.length],
+  );
+
+  const open = useCallback(
+    (key: string) => setOpenIndex(shots.findIndex((shot) => shot.key === key)),
+    [shots],
   );
 
   useEffect(() => {
@@ -80,11 +142,42 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
   if (blocks.length === 0) return null;
 
   const active = openIndex === null ? null : shots[openIndex];
-  const indexOf = (key: string) => shots.findIndex((shot) => shot.key === key);
 
   return (
     <div className="space-y-5">
-      {blocks.map((block) => {
+      {groups.map((group) => {
+        if (group.kind === 'images') {
+          // Yolg'iz rasm matn oqimida to'liq kenglikda qoladi.
+          if (group.shots.length === 1) {
+            const shot = group.shots[0];
+            return (
+              <figure key={shot.key}>
+                <button
+                  type="button"
+                  onClick={() => open(shot.key)}
+                  className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                >
+                  <img
+                    src={shot.url}
+                    alt={shot.caption ?? ''}
+                    loading="lazy"
+                    className="w-full object-contain"
+                  />
+                </button>
+                {shot.caption && (
+                  <figcaption className="mt-1.5 text-center text-xs text-slate-500">
+                    {shot.caption}
+                  </figcaption>
+                )}
+              </figure>
+            );
+          }
+
+          return <ImageGrid key={group.shots[0].key} shots={group.shots} onOpen={open} />;
+        }
+
+        const block = group.block;
+
         if (block.type === 'HEADING') {
           return (
             <h2
@@ -96,34 +189,17 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
           );
         }
 
-        if (block.type === 'TEXT') {
-          return (
-            <p key={block.id} className="prose-content text-slate-700">
-              {renderRichText(block.text)}
-            </p>
-          );
-        }
-
         if (block.type === 'GALLERY') {
           return (
             <figure key={block.id}>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {block.images.map((image) => (
-                  <button
-                    key={image.id}
-                    type="button"
-                    onClick={() => setOpenIndex(indexOf(`i${image.id}`))}
-                    className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.caption ?? ''}
-                      loading="lazy"
-                      className="aspect-square w-full object-cover transition-transform hover:scale-105"
-                    />
-                  </button>
-                ))}
-              </div>
+              <ImageGrid
+                shots={block.images.map((image) => ({
+                  key: `i${image.id}`,
+                  url: image.url,
+                  caption: image.caption,
+                }))}
+                onOpen={open}
+              />
               {block.caption && (
                 <figcaption className="mt-1.5 text-center text-xs text-slate-500">
                   {block.caption}
@@ -133,27 +209,16 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
           );
         }
 
-        return (
-          <figure key={block.id}>
-            <button
-              type="button"
-              onClick={() => setOpenIndex(indexOf(`b${block.id}`))}
-              className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-            >
-              <img
-                src={block.url ?? ''}
-                alt={block.caption ?? ''}
-                loading="lazy"
-                className="w-full object-contain"
-              />
-            </button>
-            {block.caption && (
-              <figcaption className="mt-1.5 text-center text-xs text-slate-500">
-                {block.caption}
-              </figcaption>
-            )}
-          </figure>
-        );
+        if (block.type === 'TEXT') {
+          return (
+            <p key={block.id} className="prose-content text-slate-700">
+              {renderRichText(block.text)}
+            </p>
+          );
+        }
+
+        // Fayli yo'q rasm bloki: bo'sh ramka o'rniga hech narsa chiqmaydi.
+        return null;
       })}
 
       {active && (
@@ -178,9 +243,12 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
             </button>
           </div>
 
-          {/* Rasm ustiga bosganda oyna yopilmasin */}
+          {/*
+            O'qlar rasm yonida emas, uning ustida - ekran chetlarida turadi:
+            keng rasm butun bo'shliqni egallaganda ham ular ko'rinib qoladi.
+          */}
           <div
-            className="flex min-h-0 flex-1 items-center justify-center gap-3"
+            className="relative flex min-h-0 flex-1 items-center justify-center"
             onClick={(event) => event.stopPropagation()}
           >
             {shots.length > 1 && (
@@ -188,24 +256,26 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
                 type="button"
                 onClick={() => step(-1)}
                 aria-label={t('gallery.prev')}
-                className="shrink-0 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+                className="absolute top-1/2 left-0 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-2xl leading-none text-white hover:bg-white/20 sm:p-4 sm:text-3xl"
               >
                 ‹
               </button>
             )}
 
-            <img
-              src={active.url}
-              alt={active.caption ?? ''}
-              className="max-h-full max-w-full object-contain"
-            />
+            <div className="flex h-full w-full items-center justify-center px-14 sm:px-20">
+              <img
+                src={active.url}
+                alt={active.caption ?? ''}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
 
             {shots.length > 1 && (
               <button
                 type="button"
                 onClick={() => step(1)}
                 aria-label={t('gallery.next')}
-                className="shrink-0 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+                className="absolute top-1/2 right-0 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-2xl leading-none text-white hover:bg-white/20 sm:p-4 sm:text-3xl"
               >
                 ›
               </button>

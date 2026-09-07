@@ -1,12 +1,11 @@
 import { api } from './client';
 import type {
+  AboutSectionResponse,
   NewsBlockType,
   NewsDetailResponse,
   NewsSummaryResponse,
   PageResponse,
   StaffMemberResponse,
-  StaticPageResponse,
-  UsefulLinkResponse,
 } from './types';
 
 /** Albomga qo'shiladigan rasm - avval yuklangan faylga havola. */
@@ -45,6 +44,7 @@ export interface SaveStaffPayload {
   fullName: string;
   position: string;
   academicDegree?: string;
+  biography?: string;
   phone?: string;
   email?: string;
   receptionHours?: string;
@@ -52,21 +52,13 @@ export interface SaveStaffPayload {
   active?: boolean;
 }
 
-export interface SavePagePayload {
-  slug?: string;
-  title: string;
-  body: string;
-  displayOrder?: number;
-  published?: boolean;
-}
-
-export interface SaveLinkPayload {
-  title: string;
-  url: string;
-  description?: string;
-  groupName?: string;
-  displayOrder?: number;
-  active?: boolean;
+/** "Bo'lim haqida" sahifasini saqlash. Bo'sh bandlar server tomonida tashlanadi. */
+export interface SaveAboutPayload {
+  title?: string;
+  body?: string;
+  tasksTitle?: string;
+  tasks: string[];
+  goal?: string;
 }
 
 export const contentApi = {
@@ -116,29 +108,11 @@ export const contentApi = {
 
   deleteStaff: (id: number) => api.delete<void>(`/admin/staff/${id}`),
 
-  // ------------------------------------------------------------- sahifalar
-  pages: () => api.get<StaticPageResponse[]>('/pages'),
+  // ------------------------------------------------------------- bo'lim haqida
+  about: () => api.get<AboutSectionResponse>('/about'),
 
-  pageBySlug: (slug: string) => api.get<StaticPageResponse>(`/pages/${encodeURIComponent(slug)}`),
+  adminAbout: () => api.get<AboutSectionResponse>('/admin/about'),
 
-  adminPages: () => api.get<StaticPageResponse[]>('/admin/pages'),
-
-  createPage: (payload: SavePagePayload) => api.post<StaticPageResponse>('/admin/pages', payload),
-
-  updatePage: (id: number, payload: SavePagePayload) =>
-    api.put<StaticPageResponse>(`/admin/pages/${id}`, payload),
-
-  deletePage: (id: number) => api.delete<void>(`/admin/pages/${id}`),
-
-  // ------------------------------------------------------------- havolalar
-  links: () => api.get<UsefulLinkResponse[]>('/links'),
-
-  adminLinks: () => api.get<UsefulLinkResponse[]>('/admin/links'),
-
-  createLink: (payload: SaveLinkPayload) => api.post<UsefulLinkResponse>('/admin/links', payload),
-
-  updateLink: (id: number, payload: SaveLinkPayload) =>
-    api.put<UsefulLinkResponse>(`/admin/links/${id}`, payload),
-
-  deleteLink: (id: number) => api.delete<void>(`/admin/links/${id}`),
+  saveAbout: (payload: SaveAboutPayload) =>
+    api.put<AboutSectionResponse>('/admin/about', payload),
 };

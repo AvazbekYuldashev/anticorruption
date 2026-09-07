@@ -349,35 +349,28 @@ export interface NewsDetailResponse extends NewsSummaryResponse {
   updatedAt: string;
 }
 
+/** "Bo'lim haqida" sahifasi - saytda bitta nusxada. */
+export interface AboutSectionResponse {
+  title: string | null;
+  body: string | null;
+  tasksTitle: string | null;
+  tasks: string[];
+  goal: string | null;
+  /** Sahifa to'ldirilganmi: bo'sh bo'lsa menyuda ko'rsatilmaydi. */
+  filled: boolean;
+  updatedAt: string | null;
+}
+
 export interface StaffMemberResponse {
   id: number;
   fullName: string;
   position: string;
   academicDegree: string | null;
+  biography: string | null;
   phone: string | null;
   email: string | null;
   receptionHours: string | null;
   photoUrl: string | null;
-  displayOrder: number;
-  active: boolean;
-}
-
-export interface StaticPageResponse {
-  id: number;
-  slug: string;
-  title: string;
-  body: string | null;
-  displayOrder: number;
-  published: boolean;
-  updatedAt: string;
-}
-
-export interface UsefulLinkResponse {
-  id: number;
-  title: string;
-  url: string;
-  description: string | null;
-  groupName: string | null;
   displayOrder: number;
   active: boolean;
 }
@@ -390,6 +383,13 @@ export interface PollOptionResponse {
   voteCount: number;
   /** Shu savolga javob berganlarga nisbatan foiz. */
   percentage: number;
+  /**
+   * Testda shu variant to'g'rimi.
+   *
+   * So'rovnomada va test ishlanmagunicha `null`: to'g'ri javoblar
+   * shakl bilan birga ochilib qolmasligi kerak.
+   */
+  correct: boolean | null;
 }
 
 export interface PollQuestionResponse {
@@ -410,10 +410,49 @@ export interface PollQuestionResponse {
  */
 export type PollStatus = 'DRAFT' | 'SCHEDULED' | 'OPEN' | 'STOPPED' | 'CLOSED';
 
+/** So'rovnoma (fikr so'rash) yoki test (to'g'ri javobli viktorina). */
+export type PollType = 'SURVEY' | 'QUIZ';
+
+/** Bitta savol bo'yicha test natijasi. */
+export interface QuizQuestionResult {
+  questionId: number;
+  correct: boolean;
+  chosenOptionIds: number[];
+  correctOptionIds: number[];
+}
+
+/** Test bo'yicha hisobot - faqat admin panelida keladi. */
+export interface QuizStatisticsResponse {
+  participants: number;
+  /** O'rtacha nechta savolga to'g'ri javob berilgan. */
+  averageCorrect: number;
+  /** O'rtacha natija, foizda. */
+  averagePercentage: number;
+  questions: {
+    questionId: number;
+    text: string;
+    answeredCount: number;
+    correctCount: number;
+    /** Javob berganlarga nisbatan to'g'ri javob ulushi, foizda. */
+    correctRate: number;
+  }[];
+}
+
+/** Test yakunidagi natija - faqat javob yuborilgandan keyin keladi. */
+export interface QuizResultResponse {
+  questionCount: number;
+  correctCount: number;
+  /** To'g'ri javoblar ulushi, foizda. */
+  percentage: number;
+  questions: QuizQuestionResult[];
+}
+
 export interface PollResponse {
   id: number;
   title: string;
   description: string | null;
+  type: PollType;
+  typeLabel: string;
   active: boolean;
   status: PollStatus;
   statusLabel: string;
@@ -430,6 +469,8 @@ export interface PollResponse {
   voterCount: number;
   questionCount: number;
   questions: PollQuestionResponse[];
+  /** Test yakunlangandagi natija; qolgan hollarda null. */
+  quizResult: QuizResultResponse | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -451,4 +492,6 @@ export interface PollStatisticsResponse {
   firstVoteAt: string | null;
   lastVoteAt: string | null;
   questions: PollQuestionResponse[];
+  /** Test bo'yicha ball hisoboti; so'rovnomada null. */
+  quiz: QuizStatisticsResponse | null;
 }

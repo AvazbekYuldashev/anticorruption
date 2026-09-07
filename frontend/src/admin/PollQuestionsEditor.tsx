@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
+  Checkbox,
   FormControlLabel,
   IconButton,
   Paper,
@@ -23,6 +24,8 @@ export interface EditorOption {
   key: string;
   id: number | null;
   text: string;
+  /** Testda: shu variant to'g'ri javobmi. So'rovnomada ishlatilmaydi. */
+  correct: boolean;
 }
 
 export interface EditorQuestion {
@@ -42,7 +45,7 @@ function newKey(): string {
 }
 
 export function emptyOption(): EditorOption {
-  return { key: newKey(), id: null, text: '' };
+  return { key: newKey(), id: null, text: '', correct: false };
 }
 
 export function emptyQuestion(): EditorQuestion {
@@ -67,6 +70,7 @@ export function toEditorQuestions(questions: PollQuestionResponse[]): EditorQues
       key: newKey(),
       id: option.id,
       text: option.text,
+      correct: option.correct ?? false,
     })),
   }));
 }
@@ -82,22 +86,28 @@ export function toSaveQuestions(questions: EditorQuestion[]): SavePollQuestion[]
       required: question.required,
       options: question.options
         .filter((option) => option.text.trim() !== '')
-        .map((option) => ({ id: option.id, text: option.text })),
+        .map((option) => ({ id: option.id, text: option.text, correct: option.correct })),
     }));
 }
 
 interface Props {
   value: EditorQuestion[];
+  /** Test rejimi: har bir variantda "to'g'ri javob" belgisi chiqadi. */
+  quiz?: boolean;
   onChange: (questions: EditorQuestion[]) => void;
 }
 
 /**
- * So'rovnoma savollarini tahrirlaydi.
+ * So'rovnoma yoki test savollarini tahrirlaydi.
  *
- * <p>Savollar soni cheklanmagan, har birida kamida ikkita variant bo'lishi
- * kerak - shuning uchun oxirgi ikkitasini o'chirish tugmasi o'chiriladi.
+ * <p>Savollar soni ham, variantlar soni ham cheklanmagan: kamida bittadan
+ * bo'lsa yetarli, shuning uchun oxirgisini o'chirish tugmasi o'chiriladi.
+ *
+ * <p>Test rejimida har bir variantni "to'g'ri javob" deb belgilash mumkin.
+ * Bitta tanlovli savolda faqat bittasi to'g'ri bo'ladi - yangisi
+ * belgilanganda oldingisi avtomatik bo'shatiladi.
  */
-export function PollQuestionsEditor({ value, onChange }: Props) {
+export function PollQuestionsEditor({ value, quiz = false, onChange }: Props) {
   const { t } = useTranslation();
 
   function updateQuestion(index: number, patch: Partial<EditorQuestion>) {
@@ -116,6 +126,17 @@ export function PollQuestionsEditor({ value, onChange }: Props) {
     const options = value[questionIndex].options.map((option, i) =>
       i === optionIndex ? { ...option, text } : option,
     );
+    updateQuestion(questionIndex, { options });
+  }
+
+  function setCorrect(questionIndex: number, optionIndex: number, correct: boolean) {
+    const question = value[questionIndex];
+    const options = question.options.map((option, i) => {
+      if (i === optionIndex) return { ...option, correct };
+      // Bitta tanlovli savolda to'g'ri javob ham bitta bo'ladi.
+      if (correct && !question.multipleChoice) return { ...option, correct: false };
+      return option;
+    });
     updateQuestion(questionIndex, { options });
   }
 
@@ -171,9 +192,14 @@ export function PollQuestionsEditor({ value, onChange }: Props) {
               size="small"
             />
 
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: quiz ? 0.5 : 1 }}>
               {t('admin.fieldOptions')}
             </Typography>
+            {quiz && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                {t('admin.correctAnswerHint')}
+              </Typography>
+            )}
 
             <Stack spacing={1.5}>
               {question.options.map((option, optionIndex) => (
@@ -183,6 +209,24 @@ export function PollQuestionsEditor({ value, onChange }: Props) {
                   spacing={1}
                   sx={{ alignItems: 'center' }}
                 >
+                  {quiz && (
+                    <FormControlLabel
+                      sx={{ mr: 0, whiteSpace: 'nowrap' }}
+                      control={
+                        <Checkbox
+                          size="small"
+                          color="success"
+                          checked={option.correct}
+                          onChange={(event) =>
+                            setCorrect(index, optionIndex, event.target.checked)
+                          }
+                        />
+                      }
+                      label={
+                        <Typography variant="caption">{t('admin.correctAnswer')}</Typography>
+                      }
+                    />
+                  )}
                   <TextField
                     size="small"
                     value={option.text}
@@ -192,7 +236,7 @@ export function PollQuestionsEditor({ value, onChange }: Props) {
                   <IconButton
                     size="small"
                     color="error"
-                    disabled={question.options.length <= 2}
+                    disabled={question.options.length <= 1}
                     onClick={() =>
                       updateQuestion(index, {
                         options: question.options.filter((_, i) => i !== optionIndex),
@@ -222,9 +266,22 @@ export function PollQuestionsEditor({ value, onChange }: Props) {
                 control={
                   <Switch
                     checked={question.multipleChoice}
-                    onChange={(event) =>
-                      updateQuestion(index, { multipleChoice: event.target.checked })
-                    }
+                    onChange={(event) => {
+                      const multipleChoice = event.target.checked;
+                      // Ko'p tanlov o'chirilsa faqat birinchi to'g'ri javob qoladi:
+                      // bitta tanlovli savolda ikkitasi to'g'ri bo'la olmaydi.
+                      let seen = false;
+                      const options = multipleChoice
+                        ? question.options
+                        : question.options.map((option) => {
+                            if (option.correct && !seen) {
+                              seen = true;
+                              return option;
+                            }
+                            return option.correct ? { ...option, correct: false } : option;
+                          });
+                      updateQuestion(index, { multipleChoice, options });
+                    }}
                   />
                 }
                 label={t('admin.multipleChoice')}

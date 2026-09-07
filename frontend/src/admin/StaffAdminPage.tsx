@@ -26,6 +26,7 @@ const EMPTY: SaveStaffPayload = {
   fullName: '',
   position: '',
   academicDegree: '',
+  biography: '',
   phone: '',
   email: '',
   receptionHours: '',
@@ -143,6 +144,7 @@ export function StaffAdminPage() {
                                 fullName: member.fullName,
                                 position: member.position,
                                 academicDegree: member.academicDegree ?? '',
+                                biography: member.biography ?? '',
                                 phone: member.phone ?? '',
                                 email: member.email ?? '',
                                 receptionHours: member.receptionHours ?? '',
@@ -227,6 +229,17 @@ export function StaffAdminPage() {
             onChange={(event) =>
               setDialog({ ...dialog, form: { ...dialog.form, academicDegree: event.target.value } })
             }
+            fullWidth
+          />
+          <TextField
+            label={t('admin.fieldBiography')}
+            value={dialog.form.biography}
+            onChange={(event) =>
+              setDialog({ ...dialog, form: { ...dialog.form, biography: event.target.value } })
+            }
+            helperText={t('admin.biographyHint')}
+            multiline
+            minRows={4}
             fullWidth
           />
           <Stack direction="row" spacing={2}>

@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600',
+  primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:outline-brand-600',
   secondary: 'bg-slate-800 text-white hover:bg-slate-900 focus-visible:outline-slate-800',
   outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
@@ -131,7 +131,7 @@ export function Checkbox({ label, hint, ...props }: CheckboxProps) {
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
+    <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -141,7 +141,9 @@ export function PageHeader({ title, description }: { title: string; description?
   return (
     <header className="mb-8">
       <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{title}</h1>
-      {description && <p className="mt-2 max-w-3xl text-sm text-slate-600">{description}</p>}
+      {/* Qisqa rangli chiziq - sarlavha va matn orasidagi ajratkich. */}
+      <span className="mt-3 block h-1 w-12 rounded-full bg-brand-500" />
+      {description && <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>}
     </header>
   );
 }
@@ -171,7 +173,7 @@ export function Spinner({ label }: { label?: string }) {
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4">
       <p className="text-sm text-red-800">{message}</p>
       {onRetry && (
         <button
@@ -188,7 +190,14 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
 
 export function EmptyState({ message, children }: { message: string; children?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+      {/* Belgi bo'sh joyni "buzilgan" emas, "hozircha yo'q" deb o'qitadi. */}
+      <span
+        aria-hidden
+        className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-lg text-slate-400"
+      >
+        —
+      </span>
       <p className="text-sm text-slate-500">{message}</p>
       {children && <div className="mt-4">{children}</div>}
     </div>

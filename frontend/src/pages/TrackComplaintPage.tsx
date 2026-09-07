@@ -113,23 +113,25 @@ export function TrackComplaintPage() {
           </Card>
 
           <Card>
-            <h3 className="mb-4 font-medium text-slate-900">{t('track.history')}</h3>
-            <ol className="space-y-4">
+            <h3 className="mb-5 font-medium text-slate-900">{t('track.history')}</h3>
+            {/*
+              Holatlar tarixi vaqt chizig'i ko'rinishida: nuqtalarni
+              bog'lovchi chiziq murojaat qanday yo'l bosganini ko'rsatadi.
+            */}
+            <ol className="relative space-y-6 border-l border-slate-200 pl-6">
               {query.data.history.map((entry) => (
-                <li key={entry.id} className="flex gap-3">
+                <li key={entry.id} className="relative">
                   <span
                     aria-hidden
-                    className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-500"
+                    className="absolute top-1.5 -left-[27px] h-3 w-3 rounded-full border-2 border-white bg-brand-500 ring-1 ring-brand-200"
                   />
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusBadge status={entry.newStatus} label={entry.newStatusLabel} />
-                      <span className="text-xs text-slate-400">
-                        {formatDateTime(entry.changedAt)}
-                      </span>
-                    </div>
-                    {entry.note && <p className="mt-1 text-sm text-slate-600">{entry.note}</p>}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={entry.newStatus} label={entry.newStatusLabel} />
+                    <span className="text-xs text-slate-400">
+                      {formatDateTime(entry.changedAt)}
+                    </span>
                   </div>
+                  {entry.note && <p className="mt-1.5 text-sm text-slate-600">{entry.note}</p>}
                 </li>
               ))}
             </ol>
