@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -448,8 +450,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(authorized(
-                        json(put("/api/v1/admin/polls/{id}", pollId), """
-                                {
+                        json(put("/api/v1/admin/polls/{id}", pollId), survey("""
+                                {"groupId": GROUP,
                                   "title": "Tahrirlangan so'rovnoma sarlavhasi",
                                   "questions": [{
                                     "id": %d,
@@ -460,7 +462,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     ]
                                   }]
                                 }
-                                """.formatted(questionId, keptOptionId)),
+                                """.formatted(questionId, keptOptionId))),
                         token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Tahrirlangan so'rovnoma sarlavhasi"))
@@ -497,8 +499,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
 
         // Ikkinchi savolning ovoz berilgan varianti ro'yxatdan chiqariladi
         mockMvc.perform(authorized(
-                        json(put("/api/v1/admin/polls/{id}", pollId), """
-                                {
+                        json(put("/api/v1/admin/polls/{id}", pollId), survey("""
+                                {"groupId": GROUP,
                                   "title": "Variant olib tashlangan so'rovnoma",
                                   "questions": [
                                     {"id": %d, "text": "Korrupsiyaga duch kelganmisiz?",
@@ -514,7 +516,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                 id(poll, "$.questions[0].options[1].id"),
                                 secondQuestionId,
                                 id(poll, "$.questions[1].options[1].id"),
-                                id(poll, "$.questions[1].options[2].id"))),
+                                id(poll, "$.questions[1].options[2].id")))),
                         token))
                 .andExpect(status().isOk())
                 // Birinchi savol tegilmagan - ovozi joyida
@@ -571,15 +573,15 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Bitta variantli savol ham qabul qilinadi")
     void singleOptionQuestionIsAccepted() throws Exception {
         mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "Bitta variantli so'rovnoma sinovi",
                                   "questions": [{
                                     "text": "Bitta variantli savol",
                                     "options": [{"text": "Yagona variant"}]
                                   }]
                                 }
-                                """),
+                                """)),
                         adminToken()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.questions[0].options.length()").value(1));
@@ -589,12 +591,12 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Variantsiz savol qabul qilinmaydi")
     void questionWithoutOptionsIsRejected() throws Exception {
         mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "Variantsiz so'rovnoma sinovi",
                                   "questions": [{"text": "Variantsiz savol", "options": []}]
                                 }
-                                """),
+                                """)),
                         adminToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fields").isNotEmpty());
@@ -604,9 +606,9 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Savolsiz so'rovnoma qabul qilinmaydi")
     void pollWithoutQuestionsIsRejected() throws Exception {
         mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {"title": "Savolsiz so'rovnoma sinovi", "questions": []}
-                                """),
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,"title": "Savolsiz so'rovnoma sinovi", "questions": []}
+                                """)),
                         adminToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fields.questions").exists());
@@ -616,8 +618,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Tugash vaqti boshlanishdan oldin bo'lsa rad etiladi")
     void invalidTimeWindowIsRejected() throws Exception {
         mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "Noto'g'ri vaqt oynasi bilan so'rovnoma",
                                   "startsAt": "2026-06-01T00:00:00Z",
                                   "endsAt": "2026-05-01T00:00:00Z",
@@ -626,7 +628,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     "options": [{"text": "Ha"}, {"text": "Yo'q"}]
                                   }]
                                 }
-                                """),
+                                """)),
                         adminToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("error.poll.invalidWindow"));
@@ -765,8 +767,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Ko'p tanlovli test savolida barcha to'g'ri javoblar belgilanishi kerak")
     void multipleChoiceQuizQuestionNeedsEveryCorrectOption() throws Exception {
         String quiz = mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), quiz("""
+                                {"groupId": GROUP,
                                   "title": "Ko'p javobli test sinovi",
                                   "type": "QUIZ",
                                   "questions": [{
@@ -779,7 +781,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     ]
                                   }]
                                 }
-                                """),
+                                """)),
                         adminToken()))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -803,8 +805,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("To'g'ri javobi belgilanmagan test qabul qilinmaydi")
     void quizQuestionWithoutCorrectOptionIsRejected() throws Exception {
         mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), quiz("""
+                                {"groupId": GROUP,
                                   "title": "To'g'ri javobsiz test sinovi",
                                   "type": "QUIZ",
                                   "questions": [{
@@ -812,7 +814,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     "options": [{"text": "Birinchi"}, {"text": "Ikkinchi"}]
                                   }]
                                 }
-                                """),
+                                """)),
                         adminToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("error.poll.quizNoCorrect"));
@@ -840,8 +842,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     /** Ikkita savolli test: har birida bitta to'g'ri javob. */
     private String createQuiz(String token) throws Exception {
         return mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), quiz("""
+                                {"groupId": GROUP,
                                   "title": "Korrupsiyaga qarshi kurash bo'yicha test",
                                   "type": "QUIZ",
                                   "questions": [
@@ -861,7 +863,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     }
                                   ]
                                 }
-                                """),
+                                """)),
                         token))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.type").value("QUIZ"))
@@ -871,8 +873,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
     /** Bitta savolli, uchta variantli oddiy so'rovnoma. */
     private String createPoll(String token, String title) throws Exception {
         return mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "%s",
                                   "questions": [{
                                     "text": "Institutda korrupsiyaga qarshi ishni baholang",
@@ -883,7 +885,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     ]
                                   }]
                                 }
-                                """.formatted(title)),
+                                """.formatted(title))),
                         token))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.questions[0].options.length()").value(3))
@@ -897,8 +899,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
      */
     private String createTwoQuestionPoll(String token, boolean secondRequired) throws Exception {
         return mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "Ikki savolli anketa sinovi",
                                   "questions": [
                                     {
@@ -917,7 +919,7 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     }
                                   ]
                                 }
-                                """.formatted(secondRequired)),
+                                """.formatted(secondRequired))),
                         token))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.questionCount").value(2))
@@ -929,8 +931,8 @@ class PollIntegrationTest extends AbstractIntegrationTest {
             throws Exception {
 
         return mockMvc.perform(authorized(
-                        json(post("/api/v1/admin/polls"), """
-                                {
+                        json(post("/api/v1/admin/polls"), survey("""
+                                {"groupId": GROUP,
                                   "title": "%s",
                                   "startsAt": "%s",
                                   "endsAt": "%s",
@@ -939,11 +941,48 @@ class PollIntegrationTest extends AbstractIntegrationTest {
                                     "options": [{"text": "Ha"}, {"text": "Yo'q"}]
                                   }]
                                 }
-                                """.formatted(title, startsAt, endsAt)),
+                                """.formatted(title, startsAt, endsAt))),
                         token))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
     }
+
+    /**
+     * So'rovnoma tanasiga majburiy guruhni qo'yadi.
+     *
+     * <p>Guruh id si oldindan noma'lum, shuning uchun tanalarda `GROUP` belgisi
+     * turadi va shu yerda haqiqiy id ga almashtiriladi. Har bir turga bittadan
+     * guruh yetadi: bu sinovlar guruhlarni emas, so'rovnomalarni tekshiradi.
+     */
+    private String survey(String body) throws Exception {
+        return body.replace("GROUP", String.valueOf(groupId("SURVEY")));
+    }
+
+    private String quiz(String body) throws Exception {
+        return body.replace("GROUP", String.valueOf(groupId("QUIZ")));
+    }
+
+    /** Shu tur uchun sinov guruhi - birinchi so'ralganda yaratiladi. */
+    private long groupId(String type) throws Exception {
+        Long cached = TEST_GROUPS.get(type);
+        if (cached != null) {
+            return cached;
+        }
+
+        String body = mockMvc.perform(authorized(
+                        json(post("/api/v1/admin/poll-groups"), """
+                                {"name": "Sinov guruhi %s", "type": "%s"}
+                                """.formatted(type, type)),
+                        adminToken()))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        long id = id(body, "$.id");
+        TEST_GROUPS.put(type, id);
+        return id;
+    }
+
+    private static final Map<String, Long> TEST_GROUPS = new HashMap<>();
 
     private long id(String json, String path) {
         return ((Number) JsonPath.read(json, path)).longValue();

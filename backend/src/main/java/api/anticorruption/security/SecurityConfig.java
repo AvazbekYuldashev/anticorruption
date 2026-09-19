@@ -79,7 +79,7 @@ public class SecurityConfig {
                  * sarlavhani cross-site so'rovga qo'sha olmaydi.
                  *
                  * Anonim ochiq yozuvlar (murojaat yuborish, fayl biriktirish,
-                 * ovoz berish) ro'yxatdan chiqarilgan: ular hech qanday seansga
+                 * testni boshlash, ovoz berish) ro'yxatdan chiqarilgan: ular hech qanday seansga
                  * tayanmaydi, demak CSRF ularga ma'no bermaydi.
                  */
                 .csrf(csrf -> csrf
@@ -88,6 +88,7 @@ public class SecurityConfig {
                         .ignoringRequestMatchers(
                                 "/api/v1/complaints",
                                 "/api/v1/complaints/track/**",
+                                "/api/v1/polls/*/start",
                                 "/api/v1/polls/*/vote"))
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -138,9 +139,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/news", "/api/v1/news/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/staff").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/about").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/site-texts", "/api/v1/home-banner").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/media/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/polls", "/api/v1/polls/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/polls/*/vote").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/polls/*/start", "/api/v1/polls/*/vote").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

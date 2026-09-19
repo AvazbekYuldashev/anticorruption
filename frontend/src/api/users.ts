@@ -10,6 +10,19 @@ export interface CreateUserPayload {
   role: Role;
 }
 
+/**
+ * Administrator hisobni tahrirlaydi.
+ *
+ * `password` berilsa parol tiklanadi va foydalanuvchining barcha seanslari
+ * uziladi; null bo'lsa parol o'zgarmaydi.
+ */
+export interface UpdateUserPayload {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password?: string | null;
+}
+
 /** Foydalanuvchining o'z ma'lumotlari. */
 export interface UpdateProfilePayload {
   fullName: string;
@@ -27,6 +40,9 @@ export const usersApi = {
     api.get<PageResponse<UserResponse>>('/admin/users', { query: { role, page, size } }),
 
   create: (payload: CreateUserPayload) => api.post<UserResponse>('/admin/users', payload),
+
+  update: (id: number, payload: UpdateUserPayload) =>
+    api.put<UserResponse>(`/admin/users/${id}`, payload),
 
   changeRole: (id: number, role: Role) =>
     api.patch<UserResponse>(`/admin/users/${id}/role`, { role }),

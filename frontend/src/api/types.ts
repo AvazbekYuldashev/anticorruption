@@ -499,6 +499,30 @@ export interface QuizResultResponse {
   questions: QuizQuestionResult[];
 }
 
+/**
+ * So'rovnoma yoki testlar guruhi.
+ *
+ * <p>Guruh turi bilan bog'langan: so'rovnomalar va testlar admin panelida
+ * alohida sahifada, shuning uchun guruh ham bittasiga tegishli bo'ladi.
+ */
+export interface PollGroupResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  type: PollType;
+  typeLabel: string;
+  displayOrder: number;
+  /** Guruhdagi so'rovnomalar soni. */
+  pollCount: number;
+  /**
+   * Test guruhida: guruhdagi har bir testda foydalanuvchiga savollardan nechtasi
+   * tasodifiy tanlab beriladi. null bo'lsa barcha savollar kiritilgan tartibda.
+   */
+  questionsPerAttempt: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PollResponse {
   id: number;
   title: string;
@@ -518,11 +542,30 @@ export interface PollResponse {
   runNumber: number;
   /** Oldingi o'tkazish; birinchisida null. */
   previousPollId: number | null;
+  /** Qaysi guruhga tegishli; guruhsiz bo'lsa null. */
+  groupId: number | null;
+  groupName: string | null;
   voterCount: number;
+  /** Testdagi barcha savollar soni - savollari tasodifiy beriladigan testda bu savollar bazasi. */
   questionCount: number;
+  /**
+   * Har bir ishtirokchiga savollardan nechtasi tasodifiy tanlab beriladi;
+   * barcha savollar kiritilgan tartibda berilsa null. Son guruhda belgilanadi,
+   * testda undan kam savol bo'lsa - bori.
+   */
+  questionsPerAttempt: number | null;
+  /**
+   * Ko'rsatiladigan savollar.
+   *
+   * Savollari tasodifiy beriladigan testda butun baza saytga chiqmaydi: ro'yxatda
+   * va boshlanmagan testda bu bo'sh, testni boshlaganda esa ishtirokchiga
+   * tushgan savollar keladi.
+   */
   questions: PollQuestionResponse[];
   /** Test yakunlangandagi natija; qolgan hollarda null. */
   quizResult: QuizResultResponse | null;
+  /** Test boshlanganda beriladi va javoblar bilan qaytariladi; qolgan hollarda null. */
+  attemptToken: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -539,7 +582,9 @@ export interface PollStatisticsResponse {
   previousPollId: number | null;
   voterCount: number;
   questionCount: number;
-  /** Savollarning o'rtacha javoblanish darajasi, foizda. */
+  /** Har bir ishtirokchiga nechta savol tasodifiy beriladi; hammasi berilsa null. */
+  questionsPerAttempt: number | null;
+  /** Ishtirokchilarga berilgan savollarning qanchasi javoblangani, foizda. */
   completionRate: number;
   firstVoteAt: string | null;
   lastVoteAt: string | null;

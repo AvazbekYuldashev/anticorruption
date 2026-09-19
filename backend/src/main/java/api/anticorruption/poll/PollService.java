@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -36,6 +37,8 @@ public class PollService {
 
     private final PollRepository pollRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final PollGroupService pollGroupService;
+    private final PollAttemptService attemptService;
     private final Translator translator;
 
     // ---------------------------------------------------------------- ochiq
@@ -65,7 +68,10 @@ public class PollService {
                 .filter(poll -> !HIDDEN_FROM_SITE.contains(poll.status()))
                 .map(poll -> {
                     String voterKey = voterKeyResolver == null ? null : voterKeyResolver.apply(poll.getId());
-                    return PollResponse.from(poll, hasVoted(poll.getId(), voterKey), translator);
+                    // Tasodifiy testning savollari ro'yxatda berilmaydi: har bir
+                    // ishtirokchi o'z to'plamini testni boshlaganda oladi.
+                    List<PollQuestion> questions = poll.isRandomized() ? List.of() : poll.getQuestions();
+                    return PollResponse.from(poll, questions, hasVoted(poll.getId(), voterKey), translator);
                 })
                 .toList();
     }
@@ -73,7 +79,58 @@ public class PollService {
     @Transactional(readOnly = true)
     public PollResponse findById(Long pollId, String voterKeyOrNull) {
         Poll poll = requirePoll(pollId);
-        return PollResponse.from(poll, hasVoted(pollId, voterKeyOrNull), translator);
+        boolean voted = hasVoted(pollId, voterKeyOrNull);
+        return PollResponse.from(poll, siteQuestions(poll, voterKeyOrNull, voted), voted, translator);
+    }
+
+    /**
+     * Ochiq sahifada ko'rsatiladigan savollar.
+     *
+     * <p>Tasodifiy testda butun savollar bazasi hech qachon ochilmaydi:
+     * ishtirokchi o'z to'plamini testni boshlaganda oladi, ishlab bo'lgach esa
+     * faqat o'shani to'g'ri javoblari bilan ko'radi. Aks holda bir marta test
+     * ishlagan odam barcha savollarning javobini ko'rib, tarqatib yuborardi.
+     */
+    private List<PollQuestion> siteQuestions(Poll poll, String voterKey, boolean voted) {
+        if (!poll.isRandomized()) {
+            return poll.getQuestions();
+        }
+        if (!voted) {
+            return List.of();
+        }
+        return attemptService.findForVoter(poll, voterKey)
+                .map(attempt -> attemptService.questionsOf(poll, attempt))
+                .orElse(List.of());
+    }
+
+    /**
+     * Testni boshlaydi va ishtirokchiga tushgan savollarni qaytaradi.
+     *
+     * <p>Savollari tasodifiy tanlanadigan testda to'plam shu yerda tanlanadi va
+     * saqlanadi. Qayta boshlaganda o'sha to'plam qaytadi - sahifani yangilab
+     * boshqa savollar olib bo'lmaydi.
+     *
+     * <p>Barcha savollari beriladigan so'rovnoma va testda hech narsa
+     * saqlanmaydi, savollar qaytadi xolos: interfeys ikkala holatni bir xil
+     * ishlata olsin.
+     */
+    @Transactional
+    public PollResponse start(Long pollId, String voterKey) {
+        Poll poll = requirePoll(pollId);
+
+        if (!poll.isOpenForVoting()) {
+            throw new BadRequestException(MessageKeys.POLL_CLOSED);
+        }
+        if (pollVoteRepository.existsByPollIdAndVoterKey(pollId, voterKey)) {
+            throw new ConflictException(MessageKeys.POLL_ALREADY_VOTED);
+        }
+        if (!poll.isRandomized()) {
+            return PollResponse.from(poll, poll.getQuestions(), false, translator);
+        }
+
+        PollAttempt attempt = attemptService.startOrResume(poll, voterKey);
+        return PollResponse.forAttempt(
+                poll, attemptService.questionsOf(poll, attempt), attempt.getToken(), translator);
     }
 
     /** Admin panelidagi tafsilot: to'g'ri javoblar va umumiy raqamlar bilan. */
@@ -88,6 +145,10 @@ public class PollService {
      * <p>Butun so'rovnoma bir marta yuboriladi: ishtirokchi barcha savollarni
      * to'ldirib jo'natadi va keyin javoblarini o'zgartira olmaydi. Majburiy
      * bo'lmagan savolni ro'yxatga qo'shmasa, u javobsiz hisoblanadi.
+     *
+     * <p>Savollari tasodifiy tanlanadigan testda javoblar ishtirokchiga tushgan
+     * to'plamga qarab tekshiriladi va baholanadi: bazadagi boshqa savollarga
+     * javob qabul qilinmaydi, natija esa to'plamdagi savollar sonidan chiqadi.
      */
     @Transactional
     public PollResponse vote(Long pollId, PollVoteRequest request, String voterKey) {
@@ -96,12 +157,23 @@ public class PollService {
         if (!poll.isOpenForVoting()) {
             throw new BadRequestException(MessageKeys.POLL_CLOSED);
         }
-        if (pollVoteRepository.existsByPollIdAndVoterKey(pollId, voterKey)) {
+
+        PollAttempt attempt = attemptService.resolveForVote(poll, request.attemptToken(), voterKey);
+        // Ovoz to'plam egasi nomidan yoziladi: anonim ishtirokchining IP manzili
+        // test davomida o'zgargan bo'lsa ham u "boshqa odam" bo'lib qolmaydi.
+        String owner = attempt == null ? voterKey : attempt.getVoterKey();
+
+        if ((attempt != null && attempt.isSubmitted())
+                || pollVoteRepository.existsByPollIdAndVoterKey(pollId, owner)) {
             throw new ConflictException(MessageKeys.POLL_ALREADY_VOTED);
         }
 
-        Map<PollQuestion, List<PollOption>> chosen = resolveAnswers(poll, request.answers());
-        requireAllRequiredAnswered(poll, chosen.keySet());
+        List<PollQuestion> questions = attempt == null
+                ? poll.getQuestions()
+                : attemptService.questionsOf(poll, attempt);
+
+        Map<PollQuestion, List<PollOption>> chosen = resolveAnswers(questions, request.answers());
+        requireAllRequiredAnswered(questions, chosen.keySet());
 
         for (Map.Entry<PollQuestion, List<PollOption>> answer : chosen.entrySet()) {
             PollQuestion question = answer.getKey();
@@ -113,7 +185,7 @@ public class PollService {
                         .poll(poll)
                         .question(question)
                         .option(option)
-                        .voterKey(voterKey)
+                        .voterKey(owner)
                         .build());
             }
         }
@@ -121,9 +193,13 @@ public class PollService {
         poll.setVoterCount(poll.getVoterCount() + 1);
         pollRepository.save(poll);
 
+        if (attempt != null) {
+            attemptService.markSubmitted(attempt, questions.size());
+        }
+
         // Javob yuborilgandan keyin to'g'ri variantlarni ko'rsatsa bo'ladi.
-        return PollResponse.from(poll, true, translator, true,
-                poll.isQuiz() ? scoreQuiz(poll, chosen) : null);
+        return PollResponse.afterVote(poll, questions,
+                poll.isQuiz() ? scoreQuiz(questions, chosen) : null, translator);
     }
 
     /**
@@ -133,11 +209,15 @@ public class PollService {
      * belgilangan va ortiqchasi tanlanmagan bo'lsa. Yarim javob ball
      * keltirmaydi - ko'p tanlovli savolda hammasini belgilab qo'yish
      * bilan ball olishning oldi olinadi.
+     *
+     * @param questions ishtirokchiga berilgan savollar - natija shular sonidan chiqadi
      */
-    private QuizResultResponse scoreQuiz(Poll poll, Map<PollQuestion, List<PollOption>> chosen) {
-        List<QuizResultResponse.QuestionResult> results = new ArrayList<>(poll.getQuestions().size());
+    private QuizResultResponse scoreQuiz(
+            List<PollQuestion> questions, Map<PollQuestion, List<PollOption>> chosen) {
 
-        for (PollQuestion question : poll.getQuestions()) {
+        List<QuizResultResponse.QuestionResult> results = new ArrayList<>(questions.size());
+
+        for (PollQuestion question : questions) {
             Set<Long> correctIds = new LinkedHashSet<>();
             for (PollOption option : question.getOptions()) {
                 if (option.isCorrectAnswer()) {
@@ -157,7 +237,7 @@ public class PollService {
                     List.copyOf(correctIds)));
         }
 
-        return QuizResultResponse.of(poll.getQuestions().size(), results);
+        return QuizResultResponse.of(questions.size(), results);
     }
 
     /**
@@ -165,12 +245,14 @@ public class PollService {
      *
      * <p>Tartib saqlanadi ({@link LinkedHashMap}) - xatolik yuz bersa qaysi
      * savolda ekani javobda aniq ko'rinsin.
+     *
+     * @param questions ishtirokchiga berilgan savollar; boshqasiga javob qabul qilinmaydi
      */
     private Map<PollQuestion, List<PollOption>> resolveAnswers(
-            Poll poll, List<PollVoteRequest.QuestionAnswer> answers) {
+            List<PollQuestion> questions, List<PollVoteRequest.QuestionAnswer> answers) {
 
         Map<Long, PollQuestion> questionsById = new HashMap<>();
-        for (PollQuestion question : poll.getQuestions()) {
+        for (PollQuestion question : questions) {
             questionsById.put(question.getId(), question);
         }
 
@@ -215,8 +297,8 @@ public class PollService {
         return chosen;
     }
 
-    private void requireAllRequiredAnswered(Poll poll, Set<PollQuestion> answered) {
-        for (PollQuestion question : poll.getQuestions()) {
+    private void requireAllRequiredAnswered(List<PollQuestion> questions, Set<PollQuestion> answered) {
+        for (PollQuestion question : questions) {
             if (question.isRequired() && !answered.contains(question)) {
                 throw new BadRequestException(MessageKeys.POLL_QUESTION_REQUIRED, question.getText());
             }
@@ -247,13 +329,28 @@ public class PollService {
     @Transactional(readOnly = true)
     public PollStatisticsResponse statistics(Long pollId) {
         Poll poll = requirePoll(pollId);
+        Map<String, Integer> drawSizes = attemptService.submittedSizes(pollId);
 
         return PollStatisticsResponse.from(
                 poll,
                 pollVoteRepository.findFirstVoteAt(pollId).orElse(null),
                 pollVoteRepository.findLastVoteAt(pollId).orElse(null),
-                poll.isQuiz() ? quizStatistics(poll) : null,
+                expectedAnswers(poll, drawSizes),
+                poll.isQuiz() ? quizStatistics(poll, drawSizes) : null,
                 translator);
+    }
+
+    /**
+     * Ishtirokchilarga jami nechta savol berilgan.
+     *
+     * <p>To'plami bor ishtirokchiga o'z to'plamidagi savollar, qolganlariga
+     * barcha savollar berilgan. Aralash holat testda tasodifiy tanlov o'tkazish
+     * davomida yoqilgan yoki o'chirilganda uchraydi.
+     */
+    private long expectedAnswers(Poll poll, Map<String, Integer> drawSizes) {
+        long drawn = drawSizes.values().stream().mapToLong(Integer::longValue).sum();
+        long withoutDraw = Math.max(0, poll.getVoterCount() - drawSizes.size());
+        return drawn + withoutDraw * poll.getQuestions().size();
     }
 
     /**
@@ -263,8 +360,14 @@ public class PollService {
      * shuning uchun ovozlar avval ishtirokchi va savol kesimida yig'iladi.
      * Hisob-kitob xotirada bajariladi: bitta so'rovnomaning ovozlari SQL da
      * to'plamlarni solishtirishdan ko'ra shu yerda soddaroq chiqadi.
+     *
+     * <p>Savol kesimidagi ulush o'sha savolga javob berganlarga nisbatan olinadi,
+     * shuning uchun tasodifiy testda ham to'g'ri chiqadi: har bir savolni
+     * ishtirokchilarning faqat bir qismi olgan.
+     *
+     * @param drawSizes ishtirokchi belgisi -> unga tushgan savollar soni
      */
-    private QuizStatisticsResponse quizStatistics(Poll poll) {
+    private QuizStatisticsResponse quizStatistics(Poll poll, Map<String, Integer> drawSizes) {
         Map<String, Map<Long, Set<Long>>> byVoter = new LinkedHashMap<>();
 
         for (QuizAnswerRow row : pollVoteRepository.findAnswerRows(poll.getId())) {
@@ -305,29 +408,72 @@ public class PollService {
                     answered <= 0 ? 0.0 : Math.round(correct * 1000.0 / answered) / 10.0));
         }
 
-        return QuizStatisticsResponse.of(byVoter.size(), poll.getQuestions().size(), stats);
+        // Har bir ishtirokchi o'ziga berilgan savollar sonidan baholanadi.
+        long expected = 0;
+        for (String voterKey : byVoter.keySet()) {
+            expected += drawSizes.getOrDefault(voterKey, poll.getQuestions().size());
+        }
+
+        return QuizStatisticsResponse.of(byVoter.size(), expected, stats);
     }
 
     @Transactional
     public PollResponse create(SavePollRequest request) {
         validateWindow(request);
 
+        PollType type = request.type() == null ? PollType.SURVEY : request.type();
+
         Poll poll = Poll.builder()
                 .title(request.title().trim())
                 .description(blankToNull(request.description()))
-                .type(request.type() == null ? PollType.SURVEY : request.type())
+                .type(type)
                 .active(request.active() == null || request.active())
+                .group(resolveGroup(request.groupId(), type))
                 .startsAt(request.startsAt())
                 .endsAt(request.endsAt())
                 .build();
 
         applyQuestions(poll, request.questions());
         requireCorrectAnswers(poll);
+        requireUniqueQuestions(poll);
         pollRepository.save(poll);
 
         log.info("{} yaratildi: id={}, savollar={}",
                 poll.isQuiz() ? "Test" : "So'rovnoma", poll.getId(), poll.getQuestions().size());
         return PollResponse.forAdmin(poll, translator);
+    }
+
+    /**
+     * Bitta savol ikki marta kiritilmasin.
+     *
+     * <p>Yuzlab savollik bazada bir savolni ikki marta kiritib qo'yish oson,
+     * tasodifiy tanlovda esa ikkalasi bitta ishtirokchiga tushib qolishi
+     * mumkin. Savol takroriy hisoblanadi, agar matni ham, variantlari ham bir
+     * xil bo'lsa - katta-kichik harf, ortiqcha bo'shliq va variantlar tartibi
+     * hisobga olinmaydi. Faqat matni bir xil savollar takroriy emas: "To'g'ri
+     * javobni belgilang" kabi savol turli variantlar bilan ko'p uchraydi.
+     */
+    private void requireUniqueQuestions(Poll poll) {
+        Set<String> seen = new HashSet<>();
+        for (PollQuestion question : poll.getQuestions()) {
+            if (!seen.add(contentKey(question))) {
+                throw new BadRequestException(MessageKeys.POLL_DUPLICATE_QUESTION, question.getText());
+            }
+        }
+    }
+
+    private static String contentKey(PollQuestion question) {
+        List<String> options = question.getOptions().stream()
+                .map(option -> normalizeText(option.getText()))
+                .sorted()
+                .toList();
+
+        // Qator ko'chishi solishtiriladigan matnlarda qolmaydi - ajratgich sifatida xavfsiz.
+        return normalizeText(question.getText()) + "\n" + String.join("\n", options);
+    }
+
+    private static String normalizeText(String text) {
+        return text.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -377,6 +523,7 @@ public class PollService {
         if (request.active() != null) {
             poll.setActive(request.active());
         }
+        poll.setGroup(resolveGroup(request.groupId(), poll.typeOrSurvey()));
 
         // Ovozlar variantlarga tashqi kalit bilan bog'langan, shuning uchun
         // ular variantlar o'chirilishidan oldin tozalanishi kerak.
@@ -387,6 +534,7 @@ public class PollService {
 
         applyQuestions(poll, request.questions());
         requireCorrectAnswers(poll);
+        requireUniqueQuestions(poll);
 
         if (!removedOptionIds.isEmpty()) {
             recountVoters(poll);
@@ -573,6 +721,9 @@ public class PollService {
                 .description(previous.getDescription())
                 .type(previous.getType())
                 .active(true)
+                // Yangi o'tkazish eskisi turgan guruhda qoladi: qayta
+                // o'tkazish tartibni o'zgartirmasligi kerak.
+                .group(previous.getGroup())
                 .startsAt(startsAt)
                 .endsAt(endsAt)
                 .runNumber(previous.runNumberOrFirst() + 1)
@@ -614,8 +765,9 @@ public class PollService {
     public void delete(Long pollId) {
         Poll poll = requirePoll(pollId);
 
-        // Ovozlar avval - ular variantlarga tashqi kalit bilan bog'langan.
+        // Ovozlar va to'plamlar avval - ular so'rovnomaga tashqi kalit bilan bog'langan.
         int votes = pollVoteRepository.deleteByPollId(pollId);
+        attemptService.deleteByPoll(pollId);
         pollRepository.detachSuccessors(pollId);
         pollRepository.delete(poll);
 
@@ -633,6 +785,39 @@ public class PollService {
 
     private boolean hasVoted(Long pollId, String voterKey) {
         return voterKey != null && pollVoteRepository.existsByPollIdAndVoterKey(pollId, voterKey);
+    }
+
+    /**
+     * So'rovnomani boshqa guruhga ko'chiradi.
+     *
+     * <p>Alohida amal: ro'yxatdan turib ko'chirish uchun to'liq tahrirlash
+     * shaklini ochish (savollar, variantlar, muddat bilan) ortiqcha bo'lardi.
+     */
+    @Transactional
+    public PollResponse setGroup(Long pollId, Long groupId) {
+        Poll poll = requirePoll(pollId);
+        poll.setGroup(resolveGroup(groupId, poll.typeOrSurvey()));
+        pollRepository.save(poll);
+        return PollResponse.forAdmin(poll, translator);
+    }
+
+    /**
+     * Guruh id sini guruhga aylantiradi.
+     *
+     * <p>Guruh majburiy: har bir so'rovnoma qaysidir o'tkazishga tegishli
+     * bo'lishi kerak. Turi ham mos kelishi shart - testni so'rovnomalar
+     * guruhiga qo'yish uni test sahifasidan yo'qotardi, chunki o'sha guruh
+     * u yerda umuman chiqmaydi.
+     */
+    private PollGroup resolveGroup(Long groupId, PollType pollType) {
+        if (groupId == null) {
+            throw new BadRequestException(MessageKeys.POLL_GROUP_REQUIRED);
+        }
+        PollGroup group = pollGroupService.requireGroup(groupId);
+        if (group.getType() != pollType) {
+            throw new BadRequestException(MessageKeys.POLL_GROUP_TYPE_MISMATCH, group.getName());
+        }
+        return group;
     }
 
     private Poll requirePoll(Long pollId) {

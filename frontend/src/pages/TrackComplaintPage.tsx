@@ -15,11 +15,11 @@ import { formatDateTime } from '../lib/format';
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex flex-col gap-0.5 border-b border-slate-100 py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-4">
-      <dt className="w-48 shrink-0 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+    <div className="flex flex-col gap-0.5 border-b border-slate-100 dark:border-slate-800 py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-4">
+      <dt className="w-48 shrink-0 text-[11px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
         {label}
       </dt>
-      <dd className="text-sm text-slate-800">{value}</dd>
+      <dd className="text-sm text-slate-800 dark:text-slate-200">{value}</dd>
     </div>
   );
 }
@@ -83,8 +83,8 @@ export function TrackComplaintPage() {
           <Card>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-mono text-sm text-slate-500">{query.data.trackingCode}</p>
-                <h2 className="mt-1 text-lg font-semibold text-slate-900">{query.data.title}</h2>
+                <p className="font-mono text-sm text-slate-500 dark:text-slate-400">{query.data.trackingCode}</p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{query.data.title}</h2>
               </div>
               <StatusBadge status={query.data.status} label={query.data.statusLabel} />
             </div>
@@ -109,36 +109,36 @@ export function TrackComplaintPage() {
           </Card>
 
           <Card>
-            <h3 className="font-medium text-slate-900">{t('track.official')}</h3>
+            <h3 className="font-medium text-slate-900 dark:text-slate-100">{t('track.official')}</h3>
             {query.data.officialResponse ? (
-              <p className="prose-content mt-2 text-sm text-slate-700">
+              <p className="prose-content mt-2 text-sm text-slate-700 dark:text-slate-300">
                 {query.data.officialResponse}
               </p>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">{t('track.noOfficial')}</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('track.noOfficial')}</p>
             )}
           </Card>
 
           <Card>
-            <h3 className="mb-5 font-medium text-slate-900">{t('track.history')}</h3>
+            <h3 className="mb-5 font-medium text-slate-900 dark:text-slate-100">{t('track.history')}</h3>
             {/*
               Holatlar tarixi vaqt chizig'i ko'rinishida: nuqtalarni
               bog'lovchi chiziq murojaat qanday yo'l bosganini ko'rsatadi.
             */}
-            <ol className="relative space-y-6 border-l border-slate-200 pl-6">
+            <ol className="relative space-y-6 border-l border-slate-200 dark:border-slate-800 pl-6">
               {query.data.history.map((entry) => (
                 <li key={entry.id} className="relative">
                   <span
                     aria-hidden
-                    className="absolute top-1.5 -left-[27px] h-3 w-3 rounded-full border-2 border-white bg-brand-500 ring-1 ring-brand-200"
+                    className="absolute top-1.5 -left-[27px] h-3 w-3 rounded-full border-2 border-white bg-brand-500 ring-1 ring-brand-200 dark:ring-brand-400/30"
                   />
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={entry.newStatus} label={entry.newStatusLabel} />
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
                       {formatDateTime(entry.changedAt)}
                     </span>
                   </div>
-                  {entry.note && <p className="mt-1.5 text-sm text-slate-600">{entry.note}</p>}
+                  {entry.note && <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">{entry.note}</p>}
                 </li>
               ))}
             </ol>

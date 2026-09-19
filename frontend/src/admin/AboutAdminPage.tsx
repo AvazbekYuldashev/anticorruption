@@ -17,6 +17,7 @@ import { contentApi, type SaveAboutPayload } from '../api/content';
 import { LANGUAGES } from '../i18n';
 import { AdminPage, MutationError, QueryState } from './common';
 import { RichTextField } from './RichTextField';
+import { softShadow } from './theme';
 
 /**
  * Muharrirdagi vazifa bandi.
@@ -177,7 +178,18 @@ export function AboutAdminPage() {
     <AdminPage title={t('admin.aboutTitle')} description={t('admin.aboutHint')}>
       <QueryState isPending={query.isPending} error={query.error}>
         {form && (
-          <Stack spacing={2.5} sx={{ maxWidth: 900 }}>
+          // Forma kartochka ichida: ilgari maydonlar fon ustida yolg'iz turardi.
+          <Stack
+            spacing={2.5}
+            sx={{
+              maxWidth: 900,
+              p: { xs: 2, md: 3 },
+              borderRadius: 4,
+              bgcolor: 'background.paper',
+              border: '1px solid rgba(148, 163, 184, 0.22)',
+              boxShadow: softShadow,
+            }}
+          >
             {save.isSuccess && !save.isPending && (
               <Alert severity="success">{t('admin.aboutSaved')}</Alert>
             )}

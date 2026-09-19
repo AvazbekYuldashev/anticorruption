@@ -43,7 +43,9 @@ public final class MessageKeys {
     public static final String NOT_FOUND_NEWS = "error.notFound.news";
     public static final String NOT_FOUND_STAFF_MEMBER = "error.notFound.staffMember";
     public static final String NOT_FOUND_POLL = "error.notFound.poll";
+    public static final String NOT_FOUND_POLL_GROUP = "error.notFound.pollGroup";
     public static final String NOT_FOUND_NEWS_IMAGE = "error.notFound.newsImage";
+    public static final String NOT_FOUND_HOME_BANNER_IMAGE = "error.notFound.homeBannerImage";
 
     // ---------------------------------------------------------------- murojaat
 
@@ -80,6 +82,7 @@ public final class MessageKeys {
     public static final String USER_HAS_COMPLAINTS = "error.user.hasComplaints";
     public static final String USER_CURRENT_PASSWORD_WRONG = "error.user.currentPasswordWrong";
     public static final String USER_PASSWORD_NOT_CHANGED = "error.user.passwordNotChanged";
+    public static final String USER_OWN_PASSWORD_IN_PROFILE = "error.user.ownPasswordInProfile";
 
     // ---------------------------------------------------------------- fayllar
 
@@ -108,6 +111,10 @@ public final class MessageKeys {
     public static final String NEWS_IMAGE_BLOCK_MISSING = "error.news.imageBlockMissing";
     public static final String NEWS_GALLERY_BLOCK_EMPTY = "error.news.galleryBlockEmpty";
     public static final String NEWS_TRANSLATION_EXISTS = "error.news.translationExists";
+    public static final String SITE_TEXT_UNKNOWN_KEY = "error.siteText.unknownKey";
+    public static final String SITE_TEXT_UNKNOWN_LANGUAGE = "error.siteText.unknownLanguage";
+    public static final String HOME_BANNER_TOO_MANY = "error.homeBanner.tooMany";
+    public static final String HOME_BANNER_ORDER_MISMATCH = "error.homeBanner.orderMismatch";
 
     // ---------------------------------------------------------------- so'rovnoma
 
@@ -125,6 +132,12 @@ public final class MessageKeys {
     public static final String POLL_NOT_STOPPED = "error.poll.notStopped";
     public static final String POLL_QUIZ_NO_CORRECT = "error.poll.quizNoCorrect";
     public static final String POLL_QUIZ_SINGLE_CORRECT = "error.poll.quizSingleCorrect";
+    public static final String POLL_DUPLICATE_QUESTION = "error.poll.duplicateQuestion";
+    public static final String POLL_ATTEMPT_NOT_FOUND = "error.poll.attemptNotFound";
+    public static final String POLL_GROUP_NAME_TAKEN = "error.pollGroup.nameTaken";
+    public static final String POLL_GROUP_TYPE_MISMATCH = "error.pollGroup.typeMismatch";
+    public static final String POLL_GROUP_REQUIRED = "error.pollGroup.required";
+    public static final String POLL_GROUP_IN_USE = "error.pollGroup.inUse";
 
     // ---------------------------------------------------------------- statistika
 

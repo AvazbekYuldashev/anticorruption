@@ -7,7 +7,7 @@ portali: backend (Spring Boot 4, Java 21, PostgreSQL, JWT) va frontend
 Loyiha [korrupsiya.astiedu.uz](https://korrupsiya.astiedu.uz/asti/) saytining
 kengaytirilgan muqobili sifatida yozilgan: o'sha bo'limlarning hammasi bor,
 ustiga murojaatni kuzatish, dalil biriktirish, holat tarixi, rollar va
-ochiq reyestr qo'shilgan.
+xodimlar uchun murojaatlar reyestri qo'shilgan.
 
 ```
 anticorruption/
@@ -22,10 +22,10 @@ Frontend haqida batafsil: [frontend/README.md](frontend/README.md)
 | Bo'lim | Nimasi bilan kengaytirilgan |
 |---|---|
 | **Murojaat qoldirish** | Noyob kuzatuv kodi, dalil fayllari, fakultet/kafedra/fan konteksti, 17 ta aniq kategoriya |
-| **Murojaatlar ro'yxati** | Ochiq reyestr: kategoriya, fakultet, maqom va sanalar bilan; qidiruv va filtrlar |
+| **Murojaatlar reyestri** | Faqat admin panelida (moderator va administrator): kod, holat, kategoriya, fakultet, maqom va sanalar; qidiruv va filtrlar. Ommaviy saytda yo'q |
 | **Yangiliklar** | Blokli muharrir (sarlavha, formatlangan matn, yakka rasm, albom), qoralama/chop etish, muqova, qidiruv, ko'rishlar hisobi |
 | **Xodimlar** | Lavozim, ilmiy daraja, qabul vaqti, surat, tartib raqami |
-| **So'rovnomalar** | Cheklanmagan sondagi savol, mavsumiy muddat, qo'lda to'xtatish, qayta o'tkazish, takroriy ovozdan himoya, savollar kesimidagi statistika |
+| **So'rovnomalar** | Guruhlar (bitta o'tkazish = bitta guruh), cheklanmagan sondagi savol, mavsumiy muddat, qo'lda to'xtatish, qayta o'tkazish, takroriy ovozdan himoya, savollar kesimidagi statistika |
 | **Bo'lim haqida** | Admin panelidan tahrirlanadigan sarlavha, matn, vazifalar ro'yxati va maqsad |
 | **Reytinglar** | Fakultetlar kesimi statistikadan avtomatik hisoblanadi |
 
@@ -126,16 +126,18 @@ curl -X POST http://localhost:8080/api/v1/admin/faculties -H "Authorization: Bea
 | `PATCH` | `/api/v1/admin/complaints/{id}/status` | Holatni o'zgartirish |
 | `PATCH` | `/api/v1/admin/complaints/{id}/assign` | Mas'ul xodimni belgilash |
 | `PATCH` | `/api/v1/admin/complaints/{id}/register-visibility` | Reyestrdan yashirish |
+| `GET` | `/api/v1/complaints/register` | Murojaatlar reyestri (admin panelidagi `/admin/register`) |
 | — | `/api/v1/admin/news` · `/staff` · `/about` · `/polls` | Kontent CRUD |
 | `GET` | `/api/v1/admin/polls/{id}/statistics` | So'rovnoma hisoboti |
 | `PATCH` | `/api/v1/admin/polls/{id}/stopped` | Qo'lda to'xtatish yoki davom ettirish |
+| `PATCH` | `/api/v1/admin/polls/{id}/group` | Boshqa guruhga ko'chirish |
 | `POST` | `/api/v1/admin/polls/{id}/restart` | Qayta o'tkazish (yangi o'tkazish ochadi) |
+| — | `/api/v1/admin/poll-groups` | Guruhlar CRUD (`?type=SURVEY` yoki `QUIZ`) |
 
 ### Faqat administrator
 
 `/api/v1/admin/users` (yaratish, rollar, bloklash, o'chirish) ·
-`/api/v1/admin/faculties` (tuzilma) ·
-`GET /api/v1/complaints/register` (murojaatlar reyestri - xodimlar uchun)
+`/api/v1/admin/faculties` (tuzilma)
 
 ### Hisoblar
 
@@ -267,6 +269,19 @@ hech qachon HTML ga aylanmaydi: `frontend/src/lib/richText.tsx` faqat sanab
 o'tilgan elementlarni yasaydi, havolalarda esa `http`, `https` va `mailto` dan
 boshqa sxemalar oddiy matn bo'lib qoladi.
 
+**Guruh majburiy va u bitta o'tkazishni bildiradi.** "Korrupsiyaga qarshi
+kurash oyligi 2026" da bir guruh test va bir guruh so'rovnoma o'tkaziladi,
+keyingi yilgisi esa alohida guruhga tushadi. Guruhsiz so'rovnoma bu tartibdan
+chetda qolardi, shuning uchun `groupId` bo'sh qoldirilmaydi. Guruh turi bilan
+bog'langan (`SURVEY` yoki `QUIZ`): admin panelida so'rovnomalar va testlar
+alohida sahifada, umumiy guruh ikkalasida ham yarmi bo'sh ko'rinardi.
+
+**To'ldirilgan guruhni o'chirib bo'lmaydi.** Fakultetdagi kabi: guruhni yo'q
+qilish ichidagi so'rovnomalarni ham yo'q qilishni yoki ularni "guruhsiz"
+holda qoldirishni talab qilardi, ikkalasi ham ma'lumot yo'qotadi. Avval
+so'rovnomalar boshqa guruhga ko'chiriladi (`PATCH /admin/polls/{id}/group`)
+yoki o'chiriladi, keyin bo'sh guruh o'chadi.
+
 **So'rovnoma qayta o'tkazilganda yangi yozuv ochiladi.** Eski o'tkazishning
 hisobotini tozalab, hisoblagichlarni noldan boshlash ham mumkin edi, lekin unda
 o'tgan mavsum natijalari yo'qolardi. Shu sababli "qayta o'tkazish" savollar
@@ -343,11 +358,13 @@ Hozirgi migratsiyalar:
 | `V3__news_language.sql` | Yangilikka til va `translation_group` |
 | `V4__content_translations.sql` | "Bo'lim haqida" va xodim tarjimalari |
 | `V5__refresh_token_revocation_reason.sql` | Token nega bekor qilingani |
+| `V6__poll_groups.sql` | So'rovnoma va test guruhlari |
+| `V7__poll_group_required.sql` | Guruh majburiy bo'ldi; eski yozuvlar guruhga ko'chirildi |
 
 **Entity o'zgartirilsa** yangi migratsiya fayli yozilishi shart:
 
 ```sql
--- backend/src/main/resources/db/migration/V6__xodimga_telegram_qoshildi.sql
+-- backend/src/main/resources/db/migration/V8__xodimga_telegram_qoshildi.sql
 alter table staff_members add column telegram varchar(120);
 ```
 

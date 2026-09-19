@@ -19,10 +19,11 @@ import {
 } from '@mui/material';
 import { referenceApi } from '../api/reference';
 import { usersApi, type CreateUserPayload } from '../api/users';
-import type { Role } from '../api/types';
+import type { Role, UserResponse } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../lib/format';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { listPrimaryText, listSecondaryText } from './theme';
 
 const ROLES: Role[] = ['CITIZEN', 'MODERATOR', 'ADMIN'];
 
@@ -34,15 +35,38 @@ const EMPTY_FORM: CreateUserPayload = {
   role: 'CITIZEN',
 };
 
+/** Hisobni tahrirlash shakli. Parol bo'sh qolsa o'zgarmaydi. */
+interface EditForm {
+  id: number;
+  /** Administratorning o'z hisobi - parol bu yerda emas, profilda almashtiriladi. */
+  self: boolean;
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
+function toEditForm(user: UserResponse, self: boolean): EditForm {
+  return {
+    id: user.id,
+    self,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone ?? '',
+    password: '',
+  };
+}
+
 export function UsersPage() {
   const { t } = useTranslation();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refresh: refreshSession } = useAuth();
   const queryClient = useQueryClient();
 
   const [role, setRole] = useState<Role | ''>('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [form, setForm] = useState<CreateUserPayload | null>(null);
+  const [editing, setEditing] = useState<EditForm | null>(null);
   const [deleting, setDeleting] = useState<{ id: number; name: string } | null>(null);
 
   // Rol nomlari backenddan keladi - ular joriy tilda bo'ladi.
@@ -74,6 +98,22 @@ export function UsersPage() {
     mutationFn: () => usersApi.create(form!),
     onSuccess: () => {
       setForm(null);
+      refresh();
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: () =>
+      usersApi.update(editing!.id, {
+        fullName: editing!.fullName,
+        email: editing!.email,
+        phone: editing!.phone,
+        password: editing!.self || editing!.password.trim() === '' ? null : editing!.password,
+      }),
+    onSuccess: () => {
+      // O'z ismi yoki emaili o'zgargan bo'lsa yuqoridagi panel ham yangilansin.
+      if (editing?.self) void refreshSession();
+      setEditing(null);
       refresh();
     },
   });
@@ -147,9 +187,11 @@ export function UsersPage() {
 
                     return (
                       <TableRow key={user.id} hover>
-                        <TableCell>{user.fullName}</TableCell>
                         <TableCell>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography sx={listPrimaryText}>{user.fullName}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography sx={listSecondaryText}>
                             {user.email}
                           </Typography>
                         </TableCell>
@@ -186,7 +228,10 @@ export function UsersPage() {
                             {formatDate(user.createdAt)}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          <Button size="small" onClick={() => setEditing(toEditForm(user, isSelf))}>
+                            {t('common.edit')}
+                          </Button>
                           <Button
                             size="small"
                             color={user.enabled ? 'error' : 'primary'}
@@ -284,6 +329,60 @@ export function UsersPage() {
               </MenuItem>
             ))}
           </TextField>
+        </FormDialog>
+      )}
+
+      {editing && (
+        <FormDialog
+          open
+          title={t('admin.editUser')}
+          busy={update.isPending}
+          error={update.error}
+          onClose={() => setEditing(null)}
+          onSubmit={() => update.mutate()}
+        >
+          <TextField
+            label={t('admin.colName')}
+            value={editing.fullName}
+            onChange={(event) => setEditing({ ...editing, fullName: event.target.value })}
+            required
+            fullWidth
+          />
+          <TextField
+            label={t('auth.fieldEmail')}
+            type="email"
+            value={editing.email}
+            onChange={(event) => setEditing({ ...editing, email: event.target.value })}
+            helperText={t('admin.emailIsLogin')}
+            required
+            fullWidth
+          />
+          <TextField
+            label={t('staff.phone')}
+            value={editing.phone}
+            onChange={(event) => setEditing({ ...editing, phone: event.target.value })}
+            placeholder="+998901234567"
+            fullWidth
+          />
+          {/*
+            O'z parolini administrator profil sahifasida, joriy parolni kiritib
+            almashtiradi - backend ham bu yerdan almashtirishni rad etadi.
+          */}
+          {editing.self ? (
+            <Typography variant="body2" color="text.secondary">
+              {t('admin.ownPasswordHint')}
+            </Typography>
+          ) : (
+            <TextField
+              label={t('admin.newPassword')}
+              type="text"
+              value={editing.password}
+              onChange={(event) => setEditing({ ...editing, password: event.target.value })}
+              helperText={t('admin.newPasswordHint')}
+              autoComplete="off"
+              fullWidth
+            />
+          )}
         </FormDialog>
       )}
 

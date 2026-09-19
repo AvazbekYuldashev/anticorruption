@@ -29,6 +29,7 @@ import {
 import type { StaffTranslation } from '../api/types';
 import { LANGUAGES } from '../i18n';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { listPrimaryText } from './theme';
 import { RichTextField } from './RichTextField';
 
 const EMPTY: SaveStaffPayload = {
@@ -170,7 +171,7 @@ export function StaffAdminPage() {
                           {member.fullName.charAt(0)}
                         </Avatar>
                         <Box>
-                          <Typography variant="body2">{member.fullName}</Typography>
+                          <Typography sx={listPrimaryText}>{member.fullName}</Typography>
                           {member.academicDegree && (
                             <Typography variant="caption" color="text.secondary">
                               {member.academicDegree}

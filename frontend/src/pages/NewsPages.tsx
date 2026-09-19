@@ -57,7 +57,7 @@ export function NewsListPage() {
               {query.data.content.map((item) => (
                 <article
                   key={item.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-shadow hover:shadow-md"
                 >
                   {item.coverImageUrl && (
                     <Link to={`/news/${item.slug}`} className="relative block">
@@ -71,20 +71,20 @@ export function NewsListPage() {
                   )}
 
                   <div className="flex flex-1 flex-col p-6">
-                    <h2 className="text-lg leading-snug font-bold text-slate-900">
-                      <Link to={`/news/${item.slug}`} className="hover:text-brand-700">
+                    <h2 className="text-lg leading-snug font-bold text-slate-900 dark:text-slate-100">
+                      <Link to={`/news/${item.slug}`} className="hover:text-brand-700 dark:hover:text-brand-300">
                         {item.title}
                       </Link>
                     </h2>
 
                     {item.summary && (
-                      <p className="mt-3 line-clamp-2 text-sm text-slate-500 italic">
+                      <p className="mt-3 line-clamp-2 text-sm text-slate-500 dark:text-slate-400 italic">
                         {item.summary}
                       </p>
                     )}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                      <span className="font-semibold text-brand-600">{t('site.badge')}</span>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold text-brand-600 dark:text-brand-300">{t('site.badge')}</span>
                       <span aria-hidden>•</span>
                       <span>{formatDate(item.publishedAt)}</span>
                       <span aria-hidden>•</span>
@@ -129,12 +129,12 @@ export function NewsDetailPage() {
 
   return (
     <article className="mx-auto max-w-3xl">
-      <Link to="/news" className="text-sm font-medium text-brand-600 hover:underline">
+      <Link to="/news" className="text-sm font-medium text-brand-600 dark:text-brand-300 hover:underline">
         ← {t('news.backToList')}
       </Link>
 
-      <h1 className="mt-4 text-2xl font-semibold text-slate-900 sm:text-3xl">{news.title}</h1>
-      <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
+      <h1 className="mt-4 text-2xl font-semibold text-slate-900 dark:text-slate-100 sm:text-3xl">{news.title}</h1>
+      <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400 dark:text-slate-500">
         <span>{formatDate(news.publishedAt)}</span>
         <span>{t('news.views', { count: news.viewCount })}</span>
       </div>
@@ -146,12 +146,12 @@ export function NewsDetailPage() {
       */}
       {news.translations.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-400">{t('news.otherLanguages')}</span>
+          <span className="text-slate-400 dark:text-slate-500">{t('news.otherLanguages')}</span>
           {news.translations.map((translation) => (
             <Link
               key={translation.id}
               to={`/news/${translation.slug}`}
-              className="rounded-full border border-slate-200 px-3 py-1 font-medium text-brand-600 hover:bg-slate-50"
+              className="rounded-full border border-slate-200 dark:border-slate-800 px-3 py-1 font-medium text-brand-600 dark:text-brand-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               {translation.languageName}
             </Link>
@@ -168,7 +168,7 @@ export function NewsDetailPage() {
       )}
 
       {news.summary && (
-        <p className="mt-6 border-l-4 border-brand-200 pl-4 text-base text-slate-700">
+        <p className="mt-6 border-l-4 border-brand-200 dark:border-brand-400/30 pl-4 text-base text-slate-700 dark:text-slate-300">
           {news.summary}
         </p>
       )}

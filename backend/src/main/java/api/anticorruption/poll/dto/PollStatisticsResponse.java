@@ -2,6 +2,7 @@ package api.anticorruption.poll.dto;
 
 import api.anticorruption.common.i18n.Translator;
 import api.anticorruption.poll.Poll;
+import api.anticorruption.poll.PollQuestion;
 import api.anticorruption.poll.PollStatus;
 
 import java.time.Instant;
@@ -15,10 +16,13 @@ import java.util.List;
  * keladi: qachon boshlangani, oxirgi ovoz qachon tushgani va savollarning
  * javoblanish darajasi.
  *
- * @param firstVoteAt    birinchi ovoz vaqti; hech kim ovoz bermagan bo'lsa null
- * @param previousPollId oldingi o'tkazish hisoboti; birinchisida null
- * @param completionRate savollarning o'rtacha javoblanish darajasi, foizda
- * @param quiz           test bo'yicha ball hisoboti; so'rovnomada null
+ * @param firstVoteAt         birinchi ovoz vaqti; hech kim ovoz bermagan bo'lsa null
+ * @param previousPollId      oldingi o'tkazish hisoboti; birinchisida null
+ * @param questionsPerAttempt har bir ishtirokchiga nechta savol tasodifiy beriladi;
+ *                            barcha savollar berilsa null
+ * @param completionRate      ishtirokchilarga berilgan savollarning qanchasi
+ *                            javoblangani, foizda
+ * @param quiz                test bo'yicha ball hisoboti; so'rovnomada null
  */
 public record PollStatisticsResponse(
         Long pollId,
@@ -32,16 +36,22 @@ public record PollStatisticsResponse(
         Long previousPollId,
         long voterCount,
         int questionCount,
+        Integer questionsPerAttempt,
         double completionRate,
         Instant firstVoteAt,
         Instant lastVoteAt,
         List<PollQuestionResponse> questions,
         QuizStatisticsResponse quiz
 ) {
+    /**
+     * @param expectedAnswers ishtirokchilarga jami nechta savol berilgan: har biriga
+     *                        barcha savollar yoki o'ziga tushgan to'plam
+     */
     public static PollStatisticsResponse from(
             Poll poll,
             Instant firstVoteAt,
             Instant lastVoteAt,
+            long expectedAnswers,
             QuizStatisticsResponse quiz,
             Translator translator) {
 
@@ -59,7 +69,8 @@ public record PollStatisticsResponse(
                 poll.getPreviousPoll() == null ? null : poll.getPreviousPoll().getId(),
                 poll.getVoterCount(),
                 poll.getQuestions().size(),
-                completionRate(poll),
+                poll.drawSize(),
+                completionRate(poll, expectedAnswers),
                 firstVoteAt,
                 lastVoteAt,
                 // Hisobot admin uchun: to'g'ri javoblar ham ko'rinadi.
@@ -70,21 +81,26 @@ public record PollStatisticsResponse(
     }
 
     /**
-     * Savollarning qanchasi javoblanganini ko'rsatadi.
+     * Berilgan savollarning qanchasi javoblanganini ko'rsatadi.
      *
-     * <p>Har bir savolning javob berganlari ishtirokchilar soniga nisbatan
-     * olinadi va o'rtachasi hisoblanadi. Majburiy bo'lmagan savollar tashlab
-     * ketilsa bu ko'rsatkich pasayadi - anketaning qaysi joyida odamlar
-     * to'xtab qolayotgani shundan bilinadi.
+     * <p>Savollarga berilgan javoblar jami ishtirokchilarga berilgan savollar
+     * soniga nisbatan olinadi. Majburiy bo'lmagan savollar tashlab ketilsa bu
+     * ko'rsatkich pasayadi - anketaning qaysi joyida odamlar to'xtab qolayotgani
+     * shundan bilinadi.
+     *
+     * <p>Maxraj savollar soni emas, ishtirokchilarga berilgan savollar: tasodifiy
+     * testda har bir savol ishtirokchilarning faqat bir qismiga tushadi va
+     * savollar soniga bo'linsa hamma javob bergan testda ham ko'rsatkich past
+     * chiqardi.
      */
-    private static double completionRate(Poll poll) {
-        if (poll.getVoterCount() <= 0 || poll.getQuestions().isEmpty()) {
+    private static double completionRate(Poll poll, long expectedAnswers) {
+        if (expectedAnswers <= 0) {
             return 0.0;
         }
-        double sum = poll.getQuestions().stream()
-                .mapToDouble(question -> (double) question.getAnsweredCount() / poll.getVoterCount())
+        long answered = poll.getQuestions().stream()
+                .mapToLong(PollQuestion::getAnsweredCount)
                 .sum();
 
-        return Math.round(sum * 1000.0 / poll.getQuestions().size()) / 10.0;
+        return Math.min(100.0, Math.round(answered * 1000.0 / expectedAnswers) / 10.0);
     }
 }

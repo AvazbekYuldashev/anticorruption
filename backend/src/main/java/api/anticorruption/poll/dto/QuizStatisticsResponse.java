@@ -34,8 +34,14 @@ public record QuizStatisticsResponse(
     ) {
     }
 
+    /**
+     * @param expectedAnswers ishtirokchilarga jami nechta savol berilgan. O'rtacha
+     *                        natija shunga nisbatan olinadi: savollari tasodifiy
+     *                        tanlanadigan testda ishtirokchi 200 ta savoldan
+     *                        50 tasini oladi va 50 tadan baholanadi
+     */
     public static QuizStatisticsResponse of(
-            long participants, int questionCount, List<QuestionStat> questions) {
+            long participants, long expectedAnswers, List<QuestionStat> questions) {
 
         long totalCorrect = questions.stream().mapToLong(QuestionStat::correctCount).sum();
 
@@ -43,9 +49,9 @@ public record QuizStatisticsResponse(
                 ? 0.0
                 : Math.round(totalCorrect * 100.0 / participants) / 100.0;
 
-        double averagePercentage = participants <= 0 || questionCount <= 0
+        double averagePercentage = expectedAnswers <= 0
                 ? 0.0
-                : Math.round(totalCorrect * 1000.0 / (participants * (long) questionCount)) / 10.0;
+                : Math.round(totalCorrect * 1000.0 / expectedAnswers) / 10.0;
 
         return new QuizStatisticsResponse(participants, averageCorrect, averagePercentage, questions);
     }

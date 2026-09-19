@@ -189,7 +189,7 @@ export function SubmitComplaintPage() {
               required
             >
               <Textarea {...register('description')} rows={7} maxLength={10000} />
-              <span className="mt-1 block text-right text-xs text-slate-400">
+              <span className="mt-1 block text-right text-xs text-slate-400 dark:text-slate-500">
                 {description.trim().length} / 10000
               </span>
             </Field>
@@ -274,8 +274,8 @@ export function SubmitComplaintPage() {
             </Field>
 
             {isStudent && (
-              <div className="rounded-lg bg-slate-50 p-4">
-                <p className="mb-4 text-xs text-slate-500">{t('submit.studentOnly')}</p>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-4">
+                <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{t('submit.studentOnly')}</p>
                 <div className="grid gap-5 sm:grid-cols-3">
                   <Field label={t('submit.fieldCourseYear')} error={errors.courseYear?.message}>
                     <Input type="number" min={1} max={7} {...register('courseYear')} />
@@ -363,7 +363,7 @@ function SuccessPanel({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Card className="border-emerald-200 bg-emerald-50">
+      <Card className="border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/15">
         <div className="flex items-start gap-3">
           <span
             aria-hidden
@@ -372,23 +372,23 @@ function SuccessPanel({
             ✓
           </span>
           <div>
-            <h1 className="text-lg font-semibold text-emerald-900">{t('submit.successTitle')}</h1>
-            <p className="mt-1 text-sm text-emerald-800">{created.message}</p>
+            <h1 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100">{t('submit.successTitle')}</h1>
+            <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">{created.message}</p>
           </div>
         </div>
       </Card>
 
       <Card>
-        <p className="text-sm font-medium text-slate-500">{t('submit.successCode')}</p>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('submit.successCode')}</p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <code className="rounded-lg bg-slate-100 px-4 py-2 font-mono text-xl font-semibold tracking-wider text-slate-900">
+          <code className="rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 font-mono text-xl font-semibold tracking-wider text-slate-900 dark:text-slate-100">
             {created.trackingCode}
           </code>
           <Button variant="outline" onClick={() => void copyCode()}>
             {copied ? t('common.copied') : t('common.copy')}
           </Button>
         </div>
-        <p className="mt-3 text-sm text-slate-600">{t('submit.successKeep')}</p>
+        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{t('submit.successKeep')}</p>
       </Card>
 
       <AttachmentUploader trackingCode={created.trackingCode} />
@@ -417,10 +417,10 @@ function AttachmentUploader({ trackingCode }: { trackingCode: string }) {
 
   return (
     <Card>
-      <h2 className="font-medium text-slate-900">{t('submit.attachTitle')}</h2>
-      <p className="mt-1 text-sm text-slate-600">{t('submit.attachHint')}</p>
+      <h2 className="font-medium text-slate-900 dark:text-slate-100">{t('submit.attachTitle')}</h2>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('submit.attachHint')}</p>
 
-      <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+      <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
         <input
           type="file"
           className="hidden"
@@ -439,7 +439,7 @@ function AttachmentUploader({ trackingCode }: { trackingCode: string }) {
       {uploaded.length > 0 && (
         <ul className="mt-4 space-y-1.5">
           {uploaded.map((name) => (
-            <li key={name} className="flex items-center gap-2 text-sm text-emerald-700">
+            <li key={name} className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
               <span aria-hidden>✓</span>
               {name}
             </li>

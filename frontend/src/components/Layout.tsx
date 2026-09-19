@@ -3,22 +3,21 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 /**
  * Asosiy menyu.
  *
- * <p>Murojaatlar reyestri ochiq saytda ko'rsatilmaydi: u xizmat ro'yxati
- * bo'lib qoldi va faqat xodimlarga ochiladi.
+ * <p>Murojaatlar reyestri bu yerda yo'q - xodimlarga ham: u faqat admin
+ * panelida turadi (`/admin/register`).
  */
 function useNavItems() {
   const { t } = useTranslation();
-  const { isStaff } = useAuth();
 
   return [
     { to: '/', label: t('nav.home') },
     { to: '/submit', label: t('nav.submit') },
     { to: '/track', label: t('nav.track') },
-    ...(isStaff ? [{ to: '/register', label: t('nav.register') }] : []),
     { to: '/news', label: t('nav.news') },
     { to: '/staff', label: t('nav.staff') },
     { to: '/about', label: t('nav.about') },
@@ -71,6 +70,13 @@ function Header() {
               <LanguageSwitcher compact />
             </div>
 
+            <div className="hidden sm:block">
+              <ThemeSwitcher />
+            </div>
+            <div className="sm:hidden">
+              <ThemeSwitcher compact />
+            </div>
+
             <div className="hidden items-center gap-2 border-l border-white/20 pl-3 md:flex">
               {user ? (
                 <>
@@ -80,13 +86,13 @@ function Header() {
                     </Link>
                   )}
                   {/*
-                    "Mening murojaatlarim" - fuqaro o'zi yuborgan murojaatlar
-                    ro'yxati. Xodim murojaat yubormaydi, shuning uchun unga bu
-                    havola doim bo'sh sahifa ochardi.
+                    Shaxsiy kabinet - fuqaroning o'z murojaatlari va hisob
+                    sozlamalari. Xodim murojaat yubormaydi va uning profili
+                    admin panelida, shuning uchun unga bu havola ko'rsatilmaydi.
                   */}
                   {!isStaff && (
                     <Link to="/my" className="text-xs font-medium text-white/90 hover:text-white">
-                      {t('nav.myComplaints')}
+                      {t('nav.cabinet')}
                     </Link>
                   )}
                   <button
@@ -125,7 +131,7 @@ function Header() {
       </div>
 
       {/* Pastki qator: asosiy menyu */}
-      <nav className="hidden bg-white lg:block">
+      <nav className="hidden bg-white dark:bg-slate-900 lg:block">
         <div className="mx-auto flex max-w-7xl flex-wrap gap-x-1 px-4">
           {items.map((item) => (
             <NavLink
@@ -135,8 +141,8 @@ function Header() {
               className={({ isActive }) =>
                 `border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'border-brand-600 text-brand-700'
-                    : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                    ? 'border-brand-600 text-brand-700 dark:text-brand-300'
+                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100'
                 }`
               }
             >
@@ -148,7 +154,7 @@ function Header() {
 
       {/* Mobil menyu */}
       {mobileOpen && (
-        <nav className="border-t border-slate-200 bg-white lg:hidden">
+        <nav className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 lg:hidden">
           <div className="mx-auto max-w-7xl px-4 py-2">
             {items.map((item) => (
               <NavLink
@@ -158,7 +164,7 @@ function Header() {
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `block rounded px-3 py-2.5 text-sm font-medium ${
-                    isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-700 hover:bg-slate-50'
+                    isActive ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`
                 }
               >
@@ -166,14 +172,14 @@ function Header() {
               </NavLink>
             ))}
 
-            <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2">
+            <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 dark:border-slate-800 pt-2">
               {user ? (
                 <>
                   {isStaff && (
                     <Link
                       to="/admin"
                       onClick={() => setMobileOpen(false)}
-                      className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     >
                       {t('nav.admin')}
                     </Link>
@@ -182,9 +188,9 @@ function Header() {
                     <Link
                       to="/my"
                       onClick={() => setMobileOpen(false)}
-                      className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     >
-                      {t('nav.myComplaints')}
+                      {t('nav.cabinet')}
                     </Link>
                   )}
                   <button
@@ -193,7 +199,7 @@ function Header() {
                       logout();
                       setMobileOpen(false);
                     }}
-                    className="rounded px-3 py-2.5 text-left text-sm font-medium text-slate-500 hover:bg-slate-50"
+                    className="rounded px-3 py-2.5 text-left text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   >
                     {t('nav.logout')}
                   </button>
@@ -204,7 +210,7 @@ function Header() {
                     to="/login"
                     state={{ from: location.pathname }}
                     onClick={() => setMobileOpen(false)}
-                    className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    className="rounded px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   >
                     {t('nav.login')}
                   </Link>

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,9 +59,31 @@ public class PollController {
     }
 
     @Operation(
+            summary = "Testni boshlash",
+            description = "Savollari tasodifiy tanlanadigan testda ishtirokchiga savollar bazasidan "
+                    + "takrorlanmaydigan to'plam tanlanadi va attemptToken bilan qaytadi. Qayta "
+                    + "chaqirilsa o'sha to'plam qaytadi. Boshqa so'rovnomalarda barcha savollar qaytadi")
+    @PostMapping("/{id}/start")
+    public ResponseEntity<PollResponse> start(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest,
+            @AuthenticationPrincipal AppUserPrincipal principal) {
+
+        String voterKey = voterKeyFactory.create(id, httpRequest, principal);
+        try {
+            return ResponseEntity.ok(pollService.start(id, voterKey));
+        } catch (DataIntegrityViolationException race) {
+            // Ikki so'rov bir vaqtda to'plam yaratishga urindi (tugma ikki marta
+            // bosildi): bittasi saqlandi, bu so'rov o'sha to'plamni oladi.
+            return ResponseEntity.ok(pollService.start(id, voterKey));
+        }
+    }
+
+    @Operation(
             summary = "Ovoz berish",
             description = "Bir odam bir so'rovnomada bir marta ovoz beradi. "
-                    + "Takroriy urinishda 409 qaytadi.")
+                    + "Takroriy urinishda 409 qaytadi. Savollari tasodifiy tanlanadigan testda "
+                    + "testni boshlaganda berilgan attemptToken ham yuboriladi.")
     @PostMapping("/{id}/vote")
     public ResponseEntity<PollResponse> vote(
             @PathVariable Long id,

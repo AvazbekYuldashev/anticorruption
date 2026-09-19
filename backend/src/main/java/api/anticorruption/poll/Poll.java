@@ -115,6 +115,20 @@ public class Poll {
     private Poll previousPoll;
 
     /**
+     * Qaysi guruhga tegishli.
+     *
+     * <p>Majburiy: guruh bitta o'tkazishni bildiradi ("Korrupsiyaga qarshi
+     * kurash oyligi 2026"), keyingi yilgi o'tkazish esa boshqa guruhga
+     * tushadi. Guruhsiz so'rovnoma bu tartibdan chetda qolardi.
+     *
+     * <p>Shu sababli to'ldirilgan guruhni o'chirib bo'lmaydi - avval
+     * ichidagi so'rovnomalarni ko'chirish yoki o'chirish kerak.
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "group_id", nullable = false)
+    private PollGroup group;
+
+    /**
      * Ishtirokchilar soni - ovozlar soni emas.
      *
      * <p>Bir ishtirokchi bir necha savolga javob beradi, ko'p tanlovli
@@ -178,5 +192,29 @@ public class Poll {
 
     public boolean isQuiz() {
         return typeOrSurvey() == PollType.QUIZ;
+    }
+
+    /**
+     * Har bir ishtirokchiga savollar bazasidan tasodifiy to'plam beriladimi.
+     *
+     * <p>Buni test guruhi belgilaydi ({@link PollGroup#getQuestionsPerAttempt()}):
+     * guruhdagi har bir test o'z savollaridan shuncha savolni tasodifiy beradi.
+     */
+    public boolean isRandomized() {
+        return isQuiz() && group != null && group.getQuestionsPerAttempt() != null;
+    }
+
+    /**
+     * Ishtirokchiga nechta savol beriladi; barcha savollar kiritilgan tartibda
+     * berilsa null.
+     *
+     * <p>Testda guruhda belgilangandan kam savol bo'lsa - masalan, savollar
+     * bazasi hali to'ldirilmoqda - bori beriladi, faqat aralashtirilgan holda.
+     */
+    public Integer drawSize() {
+        if (!isRandomized()) {
+            return null;
+        }
+        return Math.min(group.getQuestionsPerAttempt(), questions.size());
     }
 }

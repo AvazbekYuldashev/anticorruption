@@ -73,7 +73,7 @@ function ImageGrid({ shots, onOpen }: { shots: Shot[]; onOpen: (key: string) => 
           key={shot.key}
           type="button"
           onClick={() => onOpen(shot.key)}
-          className="group overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          className="group overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
         >
           <img
             src={shot.url}
@@ -155,7 +155,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
                 <button
                   type="button"
                   onClick={() => open(shot.key)}
-                  className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                  className="block w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
                 >
                   <img
                     src={shot.url}
@@ -165,7 +165,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
                   />
                 </button>
                 {shot.caption && (
-                  <figcaption className="mt-1.5 text-center text-xs text-slate-500">
+                  <figcaption className="mt-1.5 text-center text-xs text-slate-500 dark:text-slate-400">
                     {shot.caption}
                   </figcaption>
                 )}
@@ -182,7 +182,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
           return (
             <h2
               key={block.id}
-              className="prose-content pt-2 text-lg font-semibold text-slate-900 sm:text-xl"
+              className="prose-content pt-2 text-lg font-semibold text-slate-900 dark:text-slate-100 sm:text-xl"
             >
               {renderRichText(block.text)}
             </h2>
@@ -201,7 +201,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
                 onOpen={open}
               />
               {block.caption && (
-                <figcaption className="mt-1.5 text-center text-xs text-slate-500">
+                <figcaption className="mt-1.5 text-center text-xs text-slate-500 dark:text-slate-400">
                   {block.caption}
                 </figcaption>
               )}
@@ -211,7 +211,7 @@ export function NewsContent({ blocks }: { blocks: NewsBlockResponse[] }) {
 
         if (block.type === 'TEXT') {
           return (
-            <p key={block.id} className="prose-content text-slate-700">
+            <p key={block.id} className="prose-content text-slate-700 dark:text-slate-300">
               {renderRichText(block.text)}
             </p>
           );

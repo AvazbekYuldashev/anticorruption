@@ -40,7 +40,7 @@ function BarList({ items, colors }: { items: StatItem[]; colors?: Record<string,
   const max = Math.max(...visible.map((item) => item.count), 1);
 
   if (visible.length === 0) {
-    return <p className="text-sm text-slate-400">—</p>;
+    return <p className="text-sm text-slate-400 dark:text-slate-500">—</p>;
   }
 
   return (
@@ -48,10 +48,10 @@ function BarList({ items, colors }: { items: StatItem[]; colors?: Record<string,
       {visible.map((item) => (
         <li key={item.key}>
           <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="text-slate-700">{item.label}</span>
-            <span className="shrink-0 font-medium text-slate-900">{formatNumber(item.count)}</span>
+            <span className="text-slate-700 dark:text-slate-300">{item.label}</span>
+            <span className="shrink-0 font-medium text-slate-900 dark:text-slate-100">{formatNumber(item.count)}</span>
           </div>
-          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className={`h-full rounded-full ${colors?.[item.key] ?? 'bg-brand-500'}`}
               style={{ width: `${(item.count / max) * 100}%` }}
@@ -80,13 +80,13 @@ function Tile({
   tone?: 'neutral' | 'good';
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
       <div
-        className={`text-2xl font-semibold ${tone === 'good' ? 'text-status-good' : 'text-brand-700'}`}
+        className={`text-2xl font-semibold ${tone === 'good' ? 'text-status-good' : 'text-brand-700 dark:text-brand-300'}`}
       >
         {value}
       </div>
-      <div className="mt-1 text-xs text-slate-500">{label}</div>
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{label}</div>
     </div>
   );
 }
@@ -107,7 +107,7 @@ export function StatsPage() {
       <PageHeader title={t('stats.title')} description={t('stats.intro')} />
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">{t('stats.overview')}</h2>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">{t('stats.overview')}</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <Tile label={t('home.statTotal')} value={formatNumber(data.total)} />
           <Tile label={t('home.statResolved')} value={formatNumber(data.resolved)} tone="good" />
@@ -126,35 +126,35 @@ export function StatsPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-4 font-medium text-slate-900">{t('stats.byStatus')}</h2>
+          <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-100">{t('stats.byStatus')}</h2>
           <BarList items={data.byStatus} colors={STATUS_BAR_COLORS} />
         </Card>
         <Card>
-          <h2 className="mb-4 font-medium text-slate-900">{t('stats.byReporter')}</h2>
+          <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-100">{t('stats.byReporter')}</h2>
           <BarList items={data.byReporterType} />
         </Card>
         <Card>
-          <h2 className="mb-4 font-medium text-slate-900">{t('stats.byCategory')}</h2>
+          <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-100">{t('stats.byCategory')}</h2>
           <BarList items={data.byCategory} />
         </Card>
         <Card>
-          <h2 className="mb-4 font-medium text-slate-900">{t('stats.byFaculty')}</h2>
+          <h2 className="mb-4 font-medium text-slate-900 dark:text-slate-100">{t('stats.byFaculty')}</h2>
           <BarList items={data.byFaculty} />
         </Card>
       </section>
 
       <section>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">{t('stats.rating')}</h2>
-        <p className="mb-4 max-w-3xl rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+        <h2 className="mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{t('stats.rating')}</h2>
+        <p className="mb-4 max-w-3xl rounded-lg bg-amber-50 dark:bg-amber-500/15 p-4 text-sm text-amber-900 dark:text-amber-100">
           {t('stats.ratingNote')}
         </p>
 
         {rating.data && rating.data.length === 0 && <EmptyState message={t('stats.ratingEmpty')} />}
 
         {rating.data && rating.data.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs tracking-wide text-slate-500 dark:text-slate-400 uppercase">
                 <tr>
                   <th className="px-4 py-3 font-medium">{t('stats.colFaculty')}</th>
                   <th className="px-4 py-3 font-medium">{t('stats.colTotal')}</th>
@@ -164,26 +164,26 @@ export function StatsPage() {
                   <th className="px-4 py-3 font-medium">{t('stats.colAvgDays')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {rating.data.map((row) => (
-                  <tr key={row.facultyId} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-900">{row.facultyName}</td>
-                    <td className="px-4 py-3 text-slate-700">{formatNumber(row.total)}</td>
-                    <td className="px-4 py-3 text-slate-700">{formatNumber(row.resolved)}</td>
-                    <td className="px-4 py-3 text-slate-700">{formatNumber(row.open)}</td>
+                  <tr key={row.facultyId} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{row.facultyName}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatNumber(row.total)}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatNumber(row.resolved)}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatNumber(row.open)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                           {/* Hal qilinganlik ulushi - yuqoridagi yashil bilan bir xil ma'no. */}
                           <div
                             className="h-full rounded-full bg-status-good"
                             style={{ width: `${row.resolutionRate}%` }}
                           />
                         </div>
-                        <span className="text-xs text-slate-600">{row.resolutionRate}%</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-400">{row.resolutionRate}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                       {row.averageResolutionDays === null
                         ? '—'
                         : t('stats.days', { count: row.averageResolutionDays })}

@@ -5,6 +5,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Box,
   Button,
   Chip,
   FormControlLabel,
@@ -17,6 +18,7 @@ import {
 import { universityApi } from '../api/university';
 import type { DepartmentResponse, FacultyResponse } from '../api/types';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { brand, listPrimaryText, listSecondaryText } from './theme';
 
 interface UnitForm {
   name: string;
@@ -247,16 +249,41 @@ function FacultyRow({
         <Stack
           direction="row"
           spacing={2}
-         
           sx={{ alignItems: 'center', flexWrap: 'wrap', width: '100%', pr: 2 }}
-         
         >
-          <Chip size="small" label={faculty.code} />
-          <Typography sx={{ flexGrow: 1 }}>{faculty.name}</Typography>
+          {/*
+            Qisqartma - fakultetning belgisi. Kichkina nishon o'rniga to'la
+            kvadrat: ro'yxatda ko'z avval shunga tushadi va fakultetlar
+            bir-biridan bir qarashda ajraladi.
+          */}
+          <Box
+            aria-hidden
+            sx={{
+              flexShrink: 0,
+              minWidth: 46,
+              height: 46,
+              px: 1,
+              borderRadius: 2.5,
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+              color: '#ffffff',
+              backgroundImage: `linear-gradient(135deg, ${brand[700]}, ${brand[500]})`,
+            }}
+          >
+            {faculty.code}
+          </Box>
+
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography sx={{ ...listPrimaryText, fontSize: 15.5 }}>{faculty.name}</Typography>
+            <Typography sx={{ ...listSecondaryText, mt: 0.4 }}>
+              {t('admin.departments')}: {faculty.departments.length}
+            </Typography>
+          </Box>
+
           {!faculty.active && <Chip size="small" label={t('common.inactive')} color="default" />}
-          <Typography variant="caption" color="text.secondary">
-            {t('admin.departments')}: {faculty.departments.length}
-          </Typography>
         </Stack>
       </AccordionSummary>
 

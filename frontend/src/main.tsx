@@ -5,8 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import './i18n';
 import './index.css';
+import { applyCachedSiteTexts } from './lib/siteTexts';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
+
+// Oldingi tashrifda kelgan bosh sahifa matnlari - server javobini kutmasdan.
+applyCachedSiteTexts();
 
 const queryClient = new QueryClient({
   defaultOptions: {

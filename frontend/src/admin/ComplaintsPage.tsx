@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
+  Box,
   Button,
   Card,
   Chip,
@@ -25,6 +26,7 @@ import { complaintsApi } from '../api/complaints';
 import { referenceApi } from '../api/reference';
 import { formatDate } from '../lib/format';
 import { AdminPage, QueryState, StatusChip } from './common';
+import { codePill, listPrimaryText, listSecondaryText, panelWash } from './theme';
 
 interface Filters {
   query: string;
@@ -76,7 +78,8 @@ export function AdminComplaintsPage() {
 
   return (
     <AdminPage title={t('admin.complaintsTitle')}>
-      <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
+      {/* Boshqaruv paneli: yengil ko'kimtir fon uni pastdagi oq jadvaldan ajratadi. */}
+      <Card variant="outlined" sx={{ p: 2, mb: 3, backgroundImage: panelWash }}>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -211,15 +214,18 @@ export function AdminComplaintsPage() {
                       to={`/admin/complaints/${complaint.id}`}
                       sx={{ textDecoration: 'none', cursor: 'pointer' }}
                     >
-                      <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                        {complaint.trackingCode}
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Box component="span" sx={codePill}>
+                          {complaint.trackingCode}
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ maxWidth: 320 }}>
-                        <Typography variant="body2" noWrap>
+                        {/* Sarlavha - qatordagi asosiy yozuv, ko'z avval shunga tushadi. */}
+                        <Typography sx={listPrimaryText} noWrap>
                           {complaint.title}
                         </Typography>
                         {complaint.anonymous && (
-                          <Chip size="small" label={t('admin.anonymous')} sx={{ mt: 0.5 }} />
+                          <Chip size="small" label={t('admin.anonymous')} sx={{ mt: 0.75 }} />
                         )}
                       </TableCell>
                       <TableCell>
@@ -241,7 +247,7 @@ export function AdminComplaintsPage() {
                         </Typography>
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography sx={listSecondaryText}>
                           {formatDate(complaint.createdAt)}
                         </Typography>
                       </TableCell>

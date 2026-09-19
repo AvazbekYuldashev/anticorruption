@@ -2,6 +2,7 @@ package api.anticorruption.content;
 
 import api.anticorruption.common.dto.PageResponse;
 import api.anticorruption.content.dto.AboutSectionResponse;
+import api.anticorruption.content.dto.HomeBannerImageResponse;
 import api.anticorruption.content.dto.NewsDetailResponse;
 import api.anticorruption.content.dto.NewsSummaryResponse;
 import api.anticorruption.content.dto.StaffMemberResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Saytning ochiq bo'limlari: yangiliklar, bo'lim xodimlari va "Bo'lim haqida".
@@ -32,6 +34,8 @@ public class PublicContentController {
 
     private final NewsService newsService;
     private final SiteContentService siteContentService;
+    private final SiteTextService siteTextService;
+    private final HomeBannerService homeBannerService;
 
     // ------------------------------------------------------------- yangiliklar
 
@@ -67,5 +71,24 @@ public class PublicContentController {
     @GetMapping("/about")
     public ResponseEntity<AboutSectionResponse> about() {
         return ResponseEntity.ok(siteContentService.about());
+    }
+
+    // ------------------------------------------------------------- bosh sahifa matnlari
+
+    @Operation(
+            summary = "Bosh sahifa matnlari",
+            description = "Administrator o'zgartirgan matnlar: til kodi -> (kalit -> matn). "
+                    + "Ro'yxatda yo'q matn uchun sayt o'zining asl matnini ko'rsatadi")
+    @GetMapping("/site-texts")
+    public ResponseEntity<Map<String, Map<String, String>>> siteTexts() {
+        return ResponseEntity.ok(siteTextService.all());
+    }
+
+    @Operation(
+            summary = "Bosh banner foni",
+            description = "Rasmlar albom tartibida. Bo'sh bo'lsa banner gradient fonda qoladi")
+    @GetMapping("/home-banner")
+    public ResponseEntity<List<HomeBannerImageResponse>> homeBanner() {
+        return ResponseEntity.ok(homeBannerService.listForSite());
     }
 }

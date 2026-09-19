@@ -33,15 +33,15 @@ export function AboutPage() {
 
   return (
     <article className="mx-auto max-w-4xl">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm sm:p-10">
         {about.title && (
-          <h1 className="text-center text-xl font-semibold text-brand-600 sm:text-2xl">
+          <h1 className="text-center text-xl font-semibold text-brand-600 dark:text-brand-300 sm:text-2xl">
             {about.title}
           </h1>
         )}
 
         {about.body && (
-          <p className="mt-8 text-justify text-[15px] leading-7 whitespace-pre-line text-slate-700">
+          <p className="mt-8 text-justify text-[15px] leading-7 whitespace-pre-line text-slate-700 dark:text-slate-300">
             {renderRichText(about.body)}
           </p>
         )}
@@ -49,16 +49,16 @@ export function AboutPage() {
         {about.tasks.length > 0 && (
           <section className="mt-8">
             {about.tasksTitle && (
-              <h2 className="font-semibold text-brand-600">{about.tasksTitle}</h2>
+              <h2 className="font-semibold text-brand-600 dark:text-brand-300">{about.tasksTitle}</h2>
             )}
 
             <ul className="mt-3 space-y-2.5">
               {about.tasks.map((task, index) => (
-                <li key={index} className="flex gap-3 text-[15px] leading-6 text-slate-700">
+                <li key={index} className="flex gap-3 text-[15px] leading-6 text-slate-700 dark:text-slate-300">
                   {/* Belgi matnning birinchi qatoriga tekislanadi. */}
                   <span
                     aria-hidden
-                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600"
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
                   >
                     ✓
                   </span>
@@ -70,7 +70,7 @@ export function AboutPage() {
         )}
 
         {about.goal && (
-          <p className="mt-8 border-l-4 border-brand-200 bg-brand-50/60 py-3 pl-4 text-[15px] leading-7 whitespace-pre-line text-slate-700">
+          <p className="mt-8 border-l-4 border-brand-200 dark:border-brand-400/30 bg-brand-50/60 dark:bg-brand-500/10 py-3 pl-4 text-[15px] leading-7 whitespace-pre-line text-slate-700 dark:text-slate-300">
             {renderRichText(about.goal)}
           </p>
         )}

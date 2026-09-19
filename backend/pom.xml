@@ -180,6 +180,39 @@
 		</plugins>
 	</build>
 
+	<!--
+		Ishlab chiqarish uchun yig'ish:  ./mvnw -Pprod clean package
+
+		application-local.properties - dasturchining o'z mashinasidagi baza
+		manzili va paroli. U .gitignore da, lekin src/main/resources ichida
+		yotgani uchun oddiy yig'ishda jar ga tushib ketadi va serverda
+		muhit o'zgaruvchilarini bosib qo'yadi: application.properties dagi
+		${DB_USERNAME:...} o'rin egallovchi bo'lsa, local fayldagi qiymat
+		to'g'ridan-to'g'ri yozilgan va shuning uchun ustun chiqadi.
+
+		Natijada server mahalliy bazaga ulanmoqchi bo'ladi va ishga tushmaydi,
+		ustiga dasturchining paroli artefakt ichida tarqaladi.
+
+		Shuning uchun ishlab chiqarish artefakti shu profil bilan yig'iladi -
+		unda fayl umuman nusxalanmaydi. Oddiy (profilsiz) yig'ishda hammasi
+		avvalgidek qoladi: mahalliy ishlash buzilmaydi.
+	-->
+	<profiles>
+		<profile>
+			<id>prod</id>
+			<build>
+				<resources>
+					<resource>
+						<directory>src/main/resources</directory>
+						<excludes>
+							<exclude>application-local.properties</exclude>
+						</excludes>
+					</resource>
+				</resources>
+			</build>
+		</profile>
+	</profiles>
+
 	<repositories>
 		<repository>
 			<id>spring-snapshots</id>

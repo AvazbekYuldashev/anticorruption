@@ -5,6 +5,7 @@ import api.anticorruption.security.AppUserPrincipal;
 import api.anticorruption.user.dto.ChangeRoleRequest;
 import api.anticorruption.user.dto.CreateUserRequest;
 import api.anticorruption.user.dto.SetEnabledRequest;
+import api.anticorruption.user.dto.UpdateUserRequest;
 import api.anticorruption.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,13 +22,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Foydalanuvchilarni boshqarish. Bu yo'llarga faqat ADMIN kira oladi. */
-@Tag(name = "Admin - foydalanuvchilar", description = "Rollarni belgilash va hisoblarni bloklash")
+@Tag(name = "Admin - foydalanuvchilar",
+        description = "Hisoblarni qo'shish, tahrirlash, o'chirish, rollarni belgilash va bloklash")
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
@@ -56,6 +59,20 @@ public class AdminUserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> detail(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findById(id));
+    }
+
+    @Operation(
+            summary = "Hisobni tahrirlash",
+            description = "Ism, email (login), telefon va ixtiyoriy yangi parol. Parol berilsa "
+                    + "foydalanuvchining barcha seanslari uziladi. Administrator o'z parolini "
+                    + "profil sahifasida almashtiradi")
+    @PutMapping("/{id}")
+    public ResponseEntity<UserResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal) {
+
+        return ResponseEntity.ok(userService.update(id, request, principal.user()));
     }
 
     @Operation(summary = "Rolni o'zgartirish", description = "Administrator o'z rolini o'zgartira olmaydi")

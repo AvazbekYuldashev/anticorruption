@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 
 /*
+ * Qorong'i rejim tizim sozlamasidan emas, <html> dagi `dark` sinfidan yoqiladi:
+ * tashrifchi "yorug'", "qorong'i" yoki "avto" ni o'zi tanlaydi (lib/theme.ts).
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * Tailwind v4 da mavzu (theme) CSS orqali sozlanadi - alohida
  * tailwind.config.js kerak emas.
  */
@@ -16,6 +22,25 @@
   --color-brand-700: #1e40af;
   --color-brand-800: #1e3a8a;
   --color-brand-900: #172554;
+
+  /*
+   * Urg'u rangi: to'q ko'k bilan yonma-yon turadigan iliq oltin.
+   *
+   * U faqat harakatga chorlaydigan bitta tugma uchun - bosh bannerdagi
+   * "Murojaat qoldirish" kabi. Ilgari u yerda qizil (rose) turardi, lekin
+   * qizil bu portalda "xato" va "o'chirish" degani: bir xil rang ikki xil
+   * ma'no tashishi mumkin emas. Oltin esa hech qanday holatga biriktirilmagan
+   * va ko'k fonda o'zi ajralib turadi.
+   *
+   * Pastdagi sariq (status-warning) bilan yaqin ko'rinsa ham chalkashmaydi:
+   * holat ranglari faqat kichik nishon va diagrammalarda, bu esa faqat yirik
+   * tugmada uchraydi.
+   */
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
 
   /*
    * Holat ranglari. Ma'nosi qat'iy biriktirilgan (yaxshi -> tanqidiy) va hech
@@ -42,8 +67,47 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+ * Ish maydoni tekis kulrang emas: ikkita juda xira yorug'lik dog'i qo'yiladi -
+ * yuqori chapda ko'k, o'ng chekkada oltin. Ular deyarli sezilmaydi, lekin
+ * oq kartochkalar ostidagi fonga chuqurlik beradi va sahifa "tugallanmagan"
+ * ko'rinmaydi. `fixed` - aylantirganda dog'lar joyida qoladi, kartochkalar
+ * ular ustidan suriladi.
+ */
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  @apply text-slate-800 antialiased;
+  background-color: #f5f8fd;
+  background-image:
+    radial-gradient(58rem 38rem at 12% -12%, rgba(37, 99, 235, 0.08), transparent 62%),
+    radial-gradient(42rem 32rem at 102% 2%, rgba(245, 158, 11, 0.06), transparent 58%);
+  background-attachment: fixed;
+}
+
+/*
+ * Qorong'i fon qop-qora emas, to'q ko'k-kulrang: bosh banner va sayt
+ * tepasining ko'k rangi bilan bir oila bo'lib turadi. Yorug' rejimdagi ikki
+ * dog' ham qoladi, faqat o'ngdagisi oltin emas, binafsha: to'q fonda oltin
+ * nur loyqa jigarrang dog' bo'lib ko'rinardi.
+ */
+.dark body {
+  @apply text-slate-200;
+  background-color: #0b1220;
+  background-image:
+    radial-gradient(58rem 38rem at 12% -12%, rgba(37, 99, 235, 0.16), transparent 62%),
+    radial-gradient(42rem 32rem at 102% 2%, rgba(99, 102, 241, 0.08), transparent 58%);
+}
+
+/*
+ * Yon tomonga suriladigan tasmalar (masalan kabinet menyusi mobil ekranda)
+ * uchun. Surish chizig'ining o'zi ko'rinib turishi menyuni "buzilgan"
+ * ko'rsatadi - surish esa ishlashda davom etadi.
+ */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Uzoq matnlarda (yangilik, sahifa) o'qilishi qulay bo'lishi uchun. */
@@ -52,5 +116,5 @@ body {
 }
 
 .prose-content a {
-  @apply text-brand-600 underline;
+  @apply text-brand-600 underline dark:text-brand-300;
 }

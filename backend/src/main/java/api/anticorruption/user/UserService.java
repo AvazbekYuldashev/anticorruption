@@ -11,6 +11,7 @@ import api.anticorruption.complaint.ComplaintRepository;
 import api.anticorruption.user.dto.ChangePasswordRequest;
 import api.anticorruption.user.dto.CreateUserRequest;
 import api.anticorruption.user.dto.UpdateProfileRequest;
+import api.anticorruption.user.dto.UpdateUserRequest;
 import api.anticorruption.user.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -127,6 +128,49 @@ public class UserService {
         userRepository.save(user);
         log.info("Yangi hisob yaratildi: id={}, rol={}", user.getId(), user.getRole());
 
+        return UserResponse.from(user, translator);
+    }
+
+    /**
+     * Administrator hisobning ismi, emaili (logini), telefoni va xohlasa parolini o'zgartiradi.
+     *
+     * <p>Yangi parol berilsa foydalanuvchining barcha seanslari uziladi:
+     * parolni tiklashning odatiy sababi - u unutilgan yoki begonaga ma'lum
+     * bo'lib qolgan.
+     *
+     * <p>O'z parolini administrator bu yerda almashtira olmaydi - profil
+     * sahifasida, joriy parolni kiritib almashtiradi. Aks holda qo'lga tushgan
+     * seans bilan administrator hisobini butunlay egallab olish mumkin bo'lardi.
+     */
+    @Transactional
+    public UserResponse update(Long userId, UpdateUserRequest request, User actor) {
+        User user = requireUser(userId);
+        String email = normalizeEmail(request.email());
+        boolean resetPassword = request.password() != null && !request.password().isBlank();
+
+        if (resetPassword && Objects.equals(user.getId(), actor.getId())) {
+            throw new BadRequestException(MessageKeys.USER_OWN_PASSWORD_IN_PROFILE);
+        }
+        // Email - bu ayni paytda login, shuning uchun u noyob bo'lishi shart.
+        if (!user.getEmail().equalsIgnoreCase(email)
+                && userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ConflictException(MessageKeys.ERROR_AUTH_EMAIL_TAKEN);
+        }
+
+        user.setFullName(request.fullName().trim());
+        user.setEmail(email);
+        user.setPhone(blankToNull(request.phone()));
+        if (resetPassword) {
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+        userRepository.save(user);
+
+        if (resetPassword) {
+            refreshTokenService.revokeAll(user.getId());
+        }
+
+        log.info("Hisob tahrirlandi: id={}, parol tiklandi={} (admin id={})",
+                user.getId(), resetPassword, actor.getId());
         return UserResponse.from(user, translator);
     }
 

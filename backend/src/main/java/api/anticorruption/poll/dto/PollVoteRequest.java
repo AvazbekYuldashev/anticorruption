@@ -3,6 +3,7 @@ package api.anticorruption.poll.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -13,9 +14,15 @@ import java.util.List;
  * to'ldiradi va bir marta yuboradi. Majburiy bo'lmagan savol ro'yxatda
  * umuman bo'lmasligi mumkin - javobsiz qoldirilgani shundan bilinadi.
  *
- * @param answers har bir savol uchun tanlangan variantlar
+ * @param attemptToken savollari tasodifiy tanlanadigan testda - testni boshlaganda
+ *                     berilgan belgi ({@link PollResponse#attemptToken()}). Javoblar
+ *                     aynan shu to'plamning savollariga qarab tekshiriladi
+ * @param answers      har bir savol uchun tanlangan variantlar
  */
 public record PollVoteRequest(
+
+        @Size(max = 64, message = "{validation.size.max}")
+        String attemptToken,
 
         @NotEmpty(message = "{validation.poll.answers.required}")
         @Valid

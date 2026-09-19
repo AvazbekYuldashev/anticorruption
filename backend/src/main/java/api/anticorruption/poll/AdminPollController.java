@@ -57,9 +57,11 @@ public class AdminPollController {
 
     @Operation(
             summary = "So'rovnoma yaratish",
-            description = "Savollar soni cheklanmagan, har bir savolda kamida bitta variant "
+            description = "500 tagacha savol, har bir savolda kamida bitta variant "
                     + "bo'lishi kerak. Testda (type=QUIZ) har bir savolda to'g'ri javob "
-                    + "belgilanishi shart. Sana qo'yilsa faqat shu oraliqda javob qabul qilinadi")
+                    + "belgilanishi shart. Test guruhida questionsPerAttempt belgilangan bo'lsa "
+                    + "har bir ishtirokchiga savollardan shuncha takrorlanmaydigan savol "
+                    + "tasodifiy tanlab beriladi. Sana qo'yilsa faqat shu oraliqda javob qabul qilinadi")
     @PostMapping
     public ResponseEntity<PollResponse> create(@Valid @RequestBody SavePollRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(pollService.create(request));
@@ -96,6 +98,17 @@ public class AdminPollController {
             @RequestParam boolean stopped) {
 
         return ResponseEntity.ok(pollService.setStopped(id, stopped));
+    }
+
+    @Operation(
+            summary = "Guruhga ko'chirish",
+            description = "Guruh majburiy va uning turi so'rovnoma turiga mos bo'lishi kerak")
+    @PatchMapping("/{id}/group")
+    public ResponseEntity<PollResponse> setGroup(
+            @PathVariable Long id,
+            @RequestParam Long groupId) {
+
+        return ResponseEntity.ok(pollService.setGroup(id, groupId));
     }
 
     @Operation(

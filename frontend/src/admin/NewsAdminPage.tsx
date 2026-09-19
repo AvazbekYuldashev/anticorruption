@@ -23,6 +23,7 @@ import { contentApi, type SaveNewsPayload } from '../api/content';
 import { LANGUAGES } from '../i18n';
 import { formatDate } from '../lib/format';
 import { AdminPage, ConfirmDialog, FormDialog, MutationError, QueryState } from './common';
+import { codePill, listPrimaryText, listSecondaryText } from './theme';
 
 /**
  * Yaratishda faqat sarlavha va qisqa mazmun so'raladi. Mazmun bloklari
@@ -150,11 +151,12 @@ export function NewsAdminPage() {
                             />
                           )}
                           <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2">{item.title}</Typography>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.25 }}>
-                              <Typography variant="caption" color="text.secondary">
+                            {/* Sarlavha - qatordagi asosiy yozuv; manzil va nishonlar undan past. */}
+                            <Typography sx={listPrimaryText}>{item.title}</Typography>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.6 }}>
+                              <Box component="span" sx={codePill}>
                                 /{item.slug}
-                              </Typography>
+                              </Box>
                               <Chip size="small" label={item.languageCode} />
                               {item.imageCount > 0 && (
                                 <Chip
@@ -175,7 +177,7 @@ export function NewsAdminPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography sx={listSecondaryText}>
                           {formatDate(item.publishedAt)}
                         </Typography>
                       </TableCell>

@@ -51,7 +51,7 @@ export function LoginPage() {
   return (
     <div className="mx-auto max-w-md py-8">
       <Card>
-        <h1 className="text-xl font-semibold text-slate-900">{t('auth.loginTitle')}</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('auth.loginTitle')}</h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5" noValidate>
           <Field label={t('auth.fieldEmail')} error={errors.email?.message} required>
@@ -73,7 +73,7 @@ export function LoginPage() {
           Ochiq ro'yxatdan o'tish yo'q: hisoblarni administrator ochadi.
           Murojaat yuborish uchun esa hisob umuman kerak emas.
         */}
-        <p className="mt-6 text-center text-xs text-slate-500">{t('auth.noSelfSignUp')}</p>
+        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">{t('auth.noSelfSignUp')}</p>
       </Card>
     </div>
   );

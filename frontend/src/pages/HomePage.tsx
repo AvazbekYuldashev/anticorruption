@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { contentApi } from '../api/content';
+import { homeBannerApi, type HomeBannerImage } from '../api/homeBanner';
 import { pollsApi } from '../api/polls';
 import { statsApi } from '../api/stats';
 import { Card } from '../components/ui';
@@ -26,20 +28,20 @@ function StatTile({
   tone: 'blue' | 'green' | 'amber' | 'slate';
 }) {
   const tones = {
-    blue: 'bg-brand-50 text-brand-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    amber: 'bg-amber-50 text-amber-700',
-    slate: 'bg-slate-100 text-slate-700',
+    blue: 'bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300',
+    green: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    amber: 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 text-center shadow-sm transition-shadow hover:shadow-md">
       <div
         className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold ${tones[tone]}`}
       >
         {formatNumber(value)}
       </div>
-      <div className="mt-3 text-sm font-medium text-slate-700">{label}</div>
+      <div className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">{label}</div>
     </div>
   );
 }
@@ -48,7 +50,7 @@ function StatTile({
 function SectionTitle({ children }: { children: string }) {
   return (
     <div className="mb-6 text-center">
-      <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">{children}</h2>
+      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 sm:text-2xl">{children}</h2>
       <span className="mx-auto mt-2 block h-1 w-12 rounded-full bg-brand-500" />
     </div>
   );
@@ -64,12 +66,12 @@ function QuickTile({ to, label, icon }: { to: string; label: string; icon: React
   return (
     <Link
       to={to}
-      className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+      className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-6 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-200 dark:hover:border-brand-400/30 hover:shadow-md"
     >
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300">
         {icon}
       </span>
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
     </Link>
   );
 }
@@ -124,8 +126,78 @@ const icons = {
   ),
 };
 
+/** Albomda rasm shuncha vaqt turadi, keyin keyingisi paydo bo'ladi. */
+const SLIDE_INTERVAL_MS = 7000;
+
+/**
+ * Bosh banner foni: administrator yuklagan rasm yoki albom.
+ *
+ * <p>Rasmlar ustiga banner rangidagi qoraytiruvchi qatlam tushadi: oq sarlavha
+ * har qanday suratda ham o'qilishi kerak. Albom bo'lsa rasmlar sekin
+ * almashadi; harakatni kamaytirish so'ragan tashrifchida o'z-o'zidan
+ * almashmaydi, faqat nuqtalar orqali.
+ */
+function HeroBackground({ images }: { images: HomeBannerImage[] }) {
+  const { t } = useTranslation();
+  const [active, setActive] = useState(0);
+  const count = images.length;
+  // Administrator rasmni o'chirgan bo'lsa ko'rsatkich chegaradan chiqmasin.
+  const current = count === 0 ? 0 : active % count;
+
+  useEffect(() => {
+    if (count < 2) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const timer = window.setInterval(() => setActive((index) => index + 1), SLIDE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [count]);
+
+  return (
+    <>
+      {images.map((image, index) => (
+        <div
+          key={image.id}
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+            index === current ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ backgroundImage: `url(${image.url})` }}
+        />
+      ))}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-900/70 to-brand-700/55"
+      />
+
+      {count > 1 && (
+        <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2">
+          {images.map((image, index) => (
+            <button
+              key={image.id}
+              type="button"
+              onClick={() => setActive(index)}
+              aria-label={t('home.bannerSlide', { number: index + 1 })}
+              aria-current={index === current}
+              className={`h-2 rounded-full transition-all ${
+                index === current ? 'w-6 bg-white' : 'w-2 bg-white/50 hover:bg-white/80'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function HomePage() {
   const { t } = useTranslation();
+
+  const banner = useQuery({
+    queryKey: ['homeBanner'],
+    queryFn: homeBannerApi.site,
+    staleTime: 5 * 60_000,
+  });
+  const bannerImages = banner.data ?? [];
 
   const stats = useQuery({ queryKey: ['stats', 'public'], queryFn: statsApi.publicStats });
   const news = useQuery({ queryKey: ['news', 'latest'], queryFn: () => contentApi.news(undefined, 0, 3) });
@@ -145,13 +217,32 @@ export function HomePage() {
         birinchi ekran shunday to'liq kenglikda bo'ladi.
       */}
       <section className="relative -mx-4 -mt-8 overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 px-4 py-14 text-white sm:py-20">
-        {/* Fondagi yirik gerb - matnga xalaqit bermasligi uchun juda xira. */}
-        <img
-          src="/brand/asti-logo-256.png"
-          alt=""
+        {/* Administrator yuklagan surat yoki albom - gradient o'rniga, yorug'lik dog'i ostida. */}
+        {bannerImages.length > 0 && <HeroBackground images={bannerImages} />}
+
+        {/*
+          Yorug'lik manbai: tekis gradient tepasiga bitta yumshoq dog' qo'yiladi.
+          Banner shundan keyin "chop etilgan fon" emas, yoritilgan sahna kabi
+          ko'rinadi - matn va tugma esa aynan shu yorug' joyda turadi.
+        */}
+        <div
           aria-hidden
-          className="pointer-events-none absolute -right-10 -bottom-16 w-72 opacity-10 sm:w-96"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              'radial-gradient(38rem 22rem at 50% -10%, rgba(147, 197, 253, 0.28), transparent 70%)',
+          }}
         />
+
+        {/* Fondagi yirik gerb - matnga xalaqit bermasligi uchun juda xira. Suratli fonda u ortiqcha. */}
+        {bannerImages.length === 0 && (
+          <img
+            src="/brand/asti-logo-256.png"
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute -right-10 -bottom-16 w-72 opacity-10 sm:w-96"
+          />
+        )}
 
         <div className="relative mx-auto max-w-3xl text-center">
           <div className="flex flex-col items-center gap-3">
@@ -176,15 +267,22 @@ export function HomePage() {
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
+            {/*
+              Asosiy tugma - oltin (accent). Ilgari qizil edi, lekin qizil bu
+              portalda xato va o'chirish rangi; bannerdagi eng muhim harakat
+              xavf kabi ko'rinmasligi kerak. Oltin ko'k fonda undan ham
+              kuchliroq ajralib turadi.
+            */}
             <Link
               to="/submit"
-              className="rounded-lg bg-rose-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 transition-colors hover:bg-rose-700"
+              className="rounded-xl bg-gradient-to-br from-accent-300 to-accent-500 px-6 py-3 text-sm font-semibold text-brand-900 shadow-lg shadow-black/25 transition-all duration-150 hover:-translate-y-px hover:shadow-xl hover:shadow-black/30 active:translate-y-0"
             >
               {t('home.ctaSubmit')}
             </Link>
+            {/* Ikkinchi darajali - shishasimon: birinchisiga raqobat qilmaydi. */}
             <Link
               to="/track"
-              className="rounded-lg border border-white/40 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              className="rounded-xl border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-150 hover:-translate-y-px hover:border-white/60 hover:bg-white/20 active:translate-y-0"
             >
               {t('home.ctaTrack')}
             </Link>
@@ -217,7 +315,7 @@ export function HomePage() {
           <div className="mt-4 text-center">
             <Link
               to="/stats"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 dark:text-brand-300 hover:underline"
             >
               {t('stats.title')} <span aria-hidden>→</span>
             </Link>
@@ -232,14 +330,14 @@ export function HomePage() {
           {[1, 2, 3].map((step) => (
             <div
               key={step}
-              className="relative rounded-2xl border border-slate-200 bg-white p-6 pt-8 shadow-sm transition-shadow hover:shadow-md"
+              className="relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 pt-8 shadow-sm transition-shadow hover:shadow-md"
             >
               {/* Tartib raqami kartochka chetiga chiqarilgan - qadamlar ketma-ketligi darrov o'qiladi. */}
               <span className="absolute -top-4 left-6 flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-md shadow-brand-900/20">
                 {step}
               </span>
-              <h3 className="font-semibold text-slate-900">{t(`home.step${step}Title`)}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{t(`home.step${step}Text`)}</p>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t(`home.step${step}Title`)}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{t(`home.step${step}Text`)}</p>
             </div>
           ))}
         </div>
@@ -248,11 +346,11 @@ export function HomePage() {
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Yangiliklar */}
         <section className="lg:col-span-2">
-          <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-3">
-            <h2 className="text-lg font-semibold text-slate-900">{t('home.newsTitle')}</h2>
+          <div className="mb-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('home.newsTitle')}</h2>
             <Link
               to="/news"
-              className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+              className="text-sm font-medium text-brand-600 dark:text-brand-300 transition-colors hover:text-brand-700 dark:hover:text-brand-300"
             >
               {t('home.newsMore')} →
             </Link>
@@ -264,7 +362,7 @@ export function HomePage() {
                 <Link
                   key={item.id}
                   to={`/news/${item.slug}`}
-                  className="group flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
+                  className="group flex gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:border-brand-200 dark:hover:border-brand-400/30 hover:shadow-md"
                 >
                   {/* Rasmi yo'q yangilikda bo'sh ramka qoldirilmaydi - matn butun enni egallaydi. */}
                   {item.coverImageUrl && (
@@ -275,14 +373,14 @@ export function HomePage() {
                     />
                   )}
                   <div className="flex min-w-0 flex-col">
-                    <h3 className="font-semibold text-slate-900 group-hover:text-brand-700">
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300">
                       {item.title}
                     </h3>
                     {item.summary && (
-                      <p className="mt-1.5 line-clamp-2 text-sm text-slate-600">{item.summary}</p>
+                      <p className="mt-1.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{item.summary}</p>
                     )}
-                    <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-slate-400">
-                      <span className="font-semibold text-brand-600">{t('site.badge')}</span>
+                    <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-slate-400 dark:text-slate-500">
+                      <span className="font-semibold text-brand-600 dark:text-brand-300">{t('site.badge')}</span>
                       <span aria-hidden>•</span>
                       <span>{formatDate(item.publishedAt)}</span>
                     </div>
@@ -292,7 +390,7 @@ export function HomePage() {
             </div>
           ) : (
             <Card>
-              <p className="text-sm text-slate-500">{t('news.empty')}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('news.empty')}</p>
             </Card>
           )}
         </section>
@@ -301,11 +399,11 @@ export function HomePage() {
         <div className="space-y-8">
           {featuredPoll && (
             <section>
-              <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-3">
-                <h2 className="text-lg font-semibold text-slate-900">{t('home.pollTitle')}</h2>
+              <div className="mb-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('home.pollTitle')}</h2>
                 <Link
                   to="/polls"
-                  className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+                  className="text-sm font-medium text-brand-600 dark:text-brand-300 transition-colors hover:text-brand-700 dark:hover:text-brand-300"
                 >
                   {t('polls.title')} →
                 </Link>

@@ -24,10 +24,10 @@ function initials(fullName: string): string {
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2.5">
-      <dt className="shrink-0 text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+      <dt className="shrink-0 text-[11px] font-medium tracking-wider text-slate-400 dark:text-slate-500 uppercase">
         {label}
       </dt>
-      <dd className="min-w-0 truncate text-right text-sm font-semibold text-slate-800">
+      <dd className="min-w-0 truncate text-right text-sm font-semibold text-slate-800 dark:text-slate-200">
         {children}
       </dd>
     </div>
@@ -56,7 +56,7 @@ function StaffCard({ member }: { member: StaffMemberResponse }) {
   }, [bio, expanded]);
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md sm:flex-row">
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-shadow hover:shadow-md sm:flex-row">
       {/*
         Surat chapda, kartochka balandligicha cho'ziladi. Portret suratlar
         turli o'lchamda keladi, shuning uchun object-cover: ramka doim bir xil,
@@ -69,18 +69,18 @@ function StaffCard({ member }: { member: StaffMemberResponse }) {
           className="h-56 w-full object-cover object-top sm:h-auto sm:w-[45%] sm:shrink-0"
         />
       ) : (
-        <div className="flex h-56 w-full items-center justify-center bg-brand-50 text-3xl font-semibold text-brand-700 sm:h-auto sm:w-[45%] sm:shrink-0">
+        <div className="flex h-56 w-full items-center justify-center bg-brand-50 dark:bg-brand-500/15 text-3xl font-semibold text-brand-700 dark:text-brand-300 sm:h-auto sm:w-[45%] sm:shrink-0">
           {initials(member.fullName)}
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <p className="truncate text-center text-sm text-slate-600">{member.position}</p>
-        <h2 className="mt-1 truncate text-center text-xl font-bold text-slate-900">
+        <p className="truncate text-center text-sm text-slate-600 dark:text-slate-400">{member.position}</p>
+        <h2 className="mt-1 truncate text-center text-xl font-bold text-slate-900 dark:text-slate-100">
           {member.fullName}
         </h2>
         {member.academicDegree && (
-          <p className="mt-1 truncate text-center text-xs text-slate-500">
+          <p className="mt-1 truncate text-center text-xs text-slate-500 dark:text-slate-400">
             {member.academicDegree}
           </p>
         )}
@@ -93,7 +93,7 @@ function StaffCard({ member }: { member: StaffMemberResponse }) {
           <div className="mt-4">
             <p
               ref={bioRef}
-              className={`text-sm leading-6 whitespace-pre-line text-slate-600 ${
+              className={`text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-400 ${
                 expanded ? '' : 'line-clamp-3'
               }`}
             >
@@ -103,7 +103,7 @@ function StaffCard({ member }: { member: StaffMemberResponse }) {
               <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className="mt-1 text-sm font-medium text-brand-600 hover:underline"
+                className="mt-1 text-sm font-medium text-brand-600 dark:text-brand-300 hover:underline"
               >
                 {expanded ? t('staff.less') : t('staff.more')}
               </button>
@@ -111,20 +111,20 @@ function StaffCard({ member }: { member: StaffMemberResponse }) {
           </div>
         )}
 
-        <dl className="mt-auto divide-y divide-slate-100 pt-5">
+        <dl className="mt-auto divide-y divide-slate-100 dark:divide-slate-800 pt-5">
           {member.receptionHours && (
             <InfoRow label={t('staff.reception')}>{member.receptionHours}</InfoRow>
           )}
           {member.phone && (
             <InfoRow label={t('staff.phone')}>
-              <a href={`tel:${member.phone}`} className="hover:text-brand-600">
+              <a href={`tel:${member.phone}`} className="hover:text-brand-600 dark:hover:text-brand-300">
                 {member.phone}
               </a>
             </InfoRow>
           )}
           {member.email && (
             <InfoRow label={t('staff.email')}>
-              <a href={`mailto:${member.email}`} className="hover:text-brand-600">
+              <a href={`mailto:${member.email}`} className="hover:text-brand-600 dark:hover:text-brand-300">
                 {member.email}
               </a>
             </InfoRow>

@@ -23,6 +23,8 @@ export interface SavePollPayload {
   /** So'rovnomami yoki test; ko'rsatilmasa so'rovnoma. */
   type?: PollType;
   active?: boolean;
+  /** Qaysi guruhga tushsin. Majburiy: guruhsiz so'rovnoma bo'lmaydi. */
+  groupId: number | null;
   /** null bo'lsa muddat cheklovi yo'q. */
   startsAt?: string | null;
   endsAt?: string | null;
@@ -40,8 +42,15 @@ export const pollsApi = {
 
   detail: (id: number) => api.get<PollResponse>(`/polls/${id}`),
 
-  vote: (id: number, answers: PollAnswer[]) =>
-    api.post<PollResponse>(`/polls/${id}/vote`, { answers }),
+  /**
+   * Testni boshlaydi: ishtirokchiga tushgan savollar va `attemptToken` keladi.
+   * Qayta chaqirilsa o'sha savollar qaytadi - yangilab boshqa to'plam olib bo'lmaydi.
+   */
+  start: (id: number) => api.post<PollResponse>(`/polls/${id}/start`),
+
+  /** `attemptToken` - savollari tasodifiy beriladigan testda, boshlanganda berilgan belgi. */
+  vote: (id: number, answers: PollAnswer[], attemptToken?: string | null) =>
+    api.post<PollResponse>(`/polls/${id}/vote`, { attemptToken, answers }),
 
   // ------------------------------------------------------------- admin
   all: (type?: PollType) => api.get<PollResponse[]>('/admin/polls', { query: { type } }),
@@ -59,6 +68,15 @@ export const pollsApi = {
   /** Qo'lda to'xtatadi yoki to'xtatishni bekor qiladi. */
   setStopped: (id: number, stopped: boolean) =>
     api.patch<PollResponse>(`/admin/polls/${id}/stopped`, undefined, { query: { stopped } }),
+
+  /**
+   * Boshqa guruhga ko'chiradi.
+   *
+   * <p>Alohida amal - ro'yxatdan turib ko'chirish uchun to'liq tahrirlash
+   * shaklini (savollar, muddat bilan) ochish ortiqcha bo'lardi.
+   */
+  setGroup: (id: number, groupId: number) =>
+    api.patch<PollResponse>(`/admin/polls/${id}/group`, undefined, { query: { groupId } }),
 
   /**
    * Savollar nusxasi bilan yangi o'tkazish ochadi va eskisini to'xtatadi.

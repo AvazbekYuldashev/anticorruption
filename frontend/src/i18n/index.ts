@@ -44,6 +44,12 @@ void i18next.use(initReactI18next).init({
   // 'uz-cyrl' kodini i18next 'uz-CYRL' ga aylantirib qo'ymasligi uchun.
   lowerCaseLng: true,
   interpolation: { escapeValue: false },
+  /*
+   * Bosh sahifa matnlari serverdan keyinroq keladi va tarjimalarga qo'shiladi
+   * (lib/siteTexts.ts). Komponentlar shunda ham qayta chizilsin - aks holda
+   * yangi matn faqat til almashtirilganda ko'rinardi.
+   */
+  react: { bindI18nStore: 'added' },
 });
 
 /**

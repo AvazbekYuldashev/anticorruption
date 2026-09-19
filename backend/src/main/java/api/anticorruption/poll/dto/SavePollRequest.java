@@ -4,6 +4,7 @@ import api.anticorruption.poll.PollType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -18,8 +19,12 @@ import java.util.List;
  * ovozlari yo'qoladi.
  *
  * <p>Yuqori chegaralar mahsulot cheklovi emas, so'rov hajmini oqilona
- * ushlab turish uchun: amalda universitet anketasi bunga yaqinlashmaydi.
+ * ushlab turish uchun. Savollar chegarasi test savollari bazasiga qarab
+ * qo'yilgan: bitta testga 200-300 ta savol kiritiladi va ishtirokchiga
+ * ulardan bir qismi tasodifiy beriladi.
  *
+ * @param groupId  qaysi guruhga tegishli - majburiy. Test guruhi har bir ishtirokchiga
+ *                 nechta savol tasodifiy berilishini ham belgilaydi
  * @param startsAt null bo'lsa so'rovnoma faollashtirilishi bilan boshlanadi
  * @param endsAt   null bo'lsa qo'lda yopilgunicha davom etadi
  */
@@ -37,12 +42,16 @@ public record SavePollRequest(
 
         Boolean active,
 
+        /* Qaysi guruhga tushsin. Majburiy: guruhsiz so'rovnoma bo'lmaydi. */
+        @NotNull(message = "{validation.required}")
+        Long groupId,
+
         Instant startsAt,
 
         Instant endsAt,
 
         @NotEmpty(message = "{validation.poll.questions.required}")
-        @Size(max = 200, message = "{validation.size.max}")
+        @Size(max = 500, message = "{validation.size.max}")
         @Valid
         List<SavePollQuestionRequest> questions
 ) {

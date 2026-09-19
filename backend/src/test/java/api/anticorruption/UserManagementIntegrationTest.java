@@ -155,6 +155,105 @@ class UserManagementIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Administrator hisob ma'lumotlarini tahrirlaydi va parolini tiklaydi")
+    void adminEditsAccountAndResetsPassword() throws Exception {
+        String admin = adminToken();
+        String userToken = createUserAndLogin("Tahrirlanadigan Hisob", "tahrir.eski@test.uz", "Eski12345!");
+        int id = JsonPath.read(
+                mockMvc.perform(authorized(get("/api/v1/me"), userToken))
+                        .andReturn().getResponse().getContentAsString(),
+                "$.id");
+
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", id), """
+                                {"fullName": "Tahrirlangan Hisob", "email": "Tahrir.Yangi@test.uz",
+                                 "phone": "+998901112233", "password": "Tiklangan12345!"}
+                                """),
+                        admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fullName").value("Tahrirlangan Hisob"))
+                .andExpect(jsonPath("$.email").value("tahrir.yangi@test.uz"))
+                .andExpect(jsonPath("$.phone").value("+998901112233"));
+
+        // Yangi login va tiklangan parol ishlaydi, eski parol esa yo'q
+        login("tahrir.yangi@test.uz", "Tiklangan12345!");
+        mockMvc.perform(anonymous(json(post("/api/v1/auth/login"), """
+                        {"email": "tahrir.yangi@test.uz", "password": "Eski12345!"}
+                        """)))
+                .andExpect(status().isUnauthorized());
+
+        // Parol yuborilmasa u o'zgarmaydi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", id), """
+                                {"fullName": "Yana Tahrirlangan", "email": "tahrir.yangi@test.uz",
+                                 "phone": "", "password": null}
+                                """),
+                        admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").doesNotExist());
+        login("tahrir.yangi@test.uz", "Tiklangan12345!");
+
+        // Boshqa hisobning emailini olib bo'lmaydi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", id), """
+                                {"fullName": "Yana Tahrirlangan", "email": "%s"}
+                                """.formatted(ADMIN_EMAIL)),
+                        admin))
+                .andExpect(status().isConflict());
+
+        // Qisqa parol qabul qilinmaydi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", id), """
+                                {"fullName": "Yana Tahrirlangan", "email": "tahrir.yangi@test.uz",
+                                 "password": "qisqa"}
+                                """),
+                        admin))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.password").exists());
+    }
+
+    @Test
+    @DisplayName("Hisoblarni faqat administrator tahrirlaydi, o'z parolini esa profilda almashtiradi")
+    void onlyAdminEditsAccountsAndNotOwnPassword() throws Exception {
+        String admin = adminToken();
+        String moderator = createModeratorAndLogin("Tahrir Moderatori", "tahrir.moderator@test.uz");
+        int adminId = JsonPath.read(
+                mockMvc.perform(authorized(get("/api/v1/me"), admin))
+                        .andReturn().getResponse().getContentAsString(),
+                "$.id");
+
+        // Moderator - eng yuqori rol emas: hisoblarni tahrirlay olmaydi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", adminId), """
+                                {"fullName": "Egallangan Admin", "email": "egallangan@test.uz"}
+                                """),
+                        moderator))
+                .andExpect(status().isForbidden());
+
+        // Administrator o'z parolini bu yerda almashtira olmaydi
+        mockMvc.perform(authorized(
+                        json(put("/api/v1/admin/users/{id}", adminId), """
+                                {"fullName": "Test administrator", "email": "%s", "password": "Boshqa12345!"}
+                                """.formatted(ADMIN_EMAIL)),
+                        admin))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("error.user.ownPasswordInProfile"));
+
+        // Eski parol joyida
+        adminToken();
+    }
+
+    /** Moderator hisobi - administrator nomidan ochiladi. */
+    private String createModeratorAndLogin(String fullName, String email) throws Exception {
+        mockMvc.perform(authorized(json(post("/api/v1/admin/users"), """
+                        {"fullName": "%s", "email": "%s", "password": "Moder12345!", "role": "MODERATOR"}
+                        """.formatted(fullName, email)), adminToken()))
+                .andExpect(status().isCreated());
+
+        return login(email, "Moder12345!");
+    }
+
+    @Test
     @DisplayName("Band emailga o'tib bo'lmaydi")
     void takenEmailIsRejected() throws Exception {
         String token = createUserAndLogin("Band Email", "band.email@test.uz", "Band12345!");
